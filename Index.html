@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Staarlina — See Beyond the Light</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Raleway:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- STAR CANVAS BACKGROUND -->
+  <canvas id="starfield"></canvas>
+
+  <!-- NEBULA OVERLAY -->
+  <div class="nebula-overlay"></div>
+
+  <!-- ======================== NAVIGATION ======================== -->
+  <nav id="navbar">
+    <div class="nav-logo">
+      <span class="star-icon">★</span>
+      <span class="logo-text">Staar<span class="logo-accent">lina</span></span>
+    </div>
+    <ul class="nav-links" id="navLinks">
+      <li><a href="#home" class="nav-link active" data-page="home">Home</a></li>
+      <li><a href="#sky-lab" class="nav-link" data-page="sky-lab">Sky Lab</a></li>
+      <li><a href="#lenses" class="nav-link" data-page="lenses">AI Lenses</a></li>
+      <li><a href="#map" class="nav-link" data-page="map">Pollution Map</a></li>
+      <li><a href="#education" class="nav-link" data-page="education">Learn</a></li>
+      <li><a href="#research" class="nav-link" data-page="research">Research</a></li>
+      <li><a href="#goggles" class="nav-link" data-page="goggles">Galactic Goggles</a></li>
+    </ul>
+    <div class="nav-actions">
+      <div class="lang-selector">
+        <select id="langSelect" aria-label="Language">
+          <option value="en">🌍 EN</option>
+          <option value="es">🌍 ES</option>
+          <option value="fr">🌍 FR</option>
+          <option value="de">🌍 DE</option>
+          <option value="zh">🌍 ZH</option>
+          <option value="ar">🌍 AR</option>
+          <option value="ja">🌍 JA</option>
+        </select>
+      </div>
+      <button class="btn-login" id="loginBtn">Sign In</button>
+      <button class="hamburger" id="hamburger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ======================== PAGES WRAPPER ======================== -->
+  <main id="main-content">
+
+    <!-- ===== PAGE: HOME ===== -->
+    <section id="home" class="page active">
+      <div class="hero-content">
+        <div class="hero-eyebrow">AI-Powered Astronomy</div>
+        <h1 class="hero-title">
+          <span class="line1">See the Universe</span>
+          <span class="line2">Beyond the <em>Light</em></span>
+        </h1>
+        <p class="hero-subtitle">
+          Staarlina blends cutting-edge AI with interchangeable optical lenses to pierce through light pollution — restoring the night sky for astronomers, families, and curious minds everywhere.
+        </p>
+        <div class="hero-cta-group">
+          <button class="btn-primary" onclick="navigateTo('sky-lab')">
+            <span>Launch Sky Lab</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+          <button class="btn-ghost" onclick="navigateTo('goggles')">Discover Galactic Goggles</button>
+        </div>
+        <div class="hero-stats">
+          <div class="stat"><span class="stat-num">83%</span><span class="stat-label">of World Lives Under Light-Polluted Skies</span></div>
+          <div class="stat-divider"></div>
+          <div class="stat"><span class="stat-num">5</span><span class="stat-label">AI-Powered Lens Filters</span></div>
+          <div class="stat-divider"></div>
+          <div class="stat"><span class="stat-num">99%</span><span class="stat-label">Glare Reduction</span></div>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="planet-ring-system">
+          <div class="planet"></div>
+          <div class="ring ring-1"></div>
+          <div class="ring ring-2"></div>
+          <div class="ring ring-3"></div>
+          <div class="orbit-dot od1"></div>
+          <div class="orbit-dot od2"></div>
+          <div class="orbit-dot od3"></div>
+        </div>
+        <div class="lens-preview-orbit">
+          <div class="floating-lens fl1" title="City Lens">🏙</div>
+          <div class="floating-lens fl2" title="Astronomy Lens">🔭</div>
+          <div class="floating-lens fl3" title="Anti-Glare Lens">🛡</div>
+          <div class="floating-lens fl4" title="Brightness Lens">☀</div>
+          <div class="floating-lens fl5" title="Custom Lens">⚙</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PAGE: SKY LAB ===== -->
+    <section id="sky-lab" class="page">
+      <div class="page-header">
+        <h2 class="page-title">Sky Lab <span class="badge-ai">AI</span></h2>
+        <p class="page-subtitle">Simulate the night sky through each AI lens — or use your own camera to filter live images.</p>
+      </div>
+
+      <div class="skylab-layout">
+        <!-- Sky Simulation -->
+        <div class="sky-sim-card">
+          <div class="sky-sim-header">
+            <span>Night Sky Simulator</span>
+            <div class="sim-controls-inline">
+              <button class="sim-btn active" id="simModeBtn" onclick="toggleSimMode()">
+                <span id="simModeTxt">Simulation Mode</span>
+              </button>
+              <button class="sim-btn" id="cameraBtn" onclick="startCamera()">
+                📷 Camera Mode
+              </button>
+            </div>
+          </div>
+
+          <div class="sky-viewport" id="skyViewport">
+            <canvas id="skyCanvas"></canvas>
+            <video id="cameraFeed" autoplay playsinline style="display:none;"></video>
+            <canvas id="cameraCanvas" style="display:none;"></canvas>
+            <div class="sky-hud">
+              <div class="hud-item" id="hudLocation">📍 Location: --</div>
+              <div class="hud-item" id="hudLens">🔬 Lens: None</div>
+              <div class="hud-item" id="hudTime">🕐 --:--</div>
+            </div>
+            <div class="lens-overlay" id="lensOverlay"></div>
+          </div>
+
+          <div class="sky-actions">
+            <button class="btn-action" onclick="captureSnapshot()">📸 Snapshot</button>
+            <button class="btn-action" onclick="toggleLensCompare()">⚖ Compare Lenses</button>
+            <button class="btn-action" onclick="requestLocation()">📍 My Location</button>
+          </div>
+        </div>
+
+        <!-- Lens Controls -->
+        <div class="lens-panel">
+          <h3 class="panel-title">Active Lens</h3>
+          <div class="lens-grid" id="lensGrid">
+            <div class="lens-card" data-lens="none" onclick="selectLens('none', this)">
+              <div class="lens-icon">👁</div>
+              <div class="lens-name">No Lens</div>
+              <div class="lens-desc">Raw view</div>
+            </div>
+            <div class="lens-card" data-lens="city" onclick="selectLens('city', this)">
+              <div class="lens-icon">🏙</div>
+              <div class="lens-name">City Lens</div>
+              <div class="lens-desc">Reduces LED blue-light glare</div>
+            </div>
+            <div class="lens-card" data-lens="astronomy" onclick="selectLens('astronomy', this)">
+              <div class="lens-icon">🔭</div>
+              <div class="lens-name">Astronomy</div>
+              <div class="lens-desc">Enhances star contrast</div>
+            </div>
+            <div class="lens-card" data-lens="antiglare" onclick="selectLens('antiglare', this)">
+              <div class="lens-icon">🛡</div>
+              <div class="lens-name">Anti-Glare</div>
+              <div class="lens-desc">Blocks artificial luminance</div>
+            </div>
+            <div class="lens-card" data-lens="brightness" onclick="selectLens('brightness', this)">
+              <div class="lens-icon">☀</div>
+              <div class="lens-name">Brightness</div>
+              <div class="lens-desc">Dims harsh environments</div>
+            </div>
+            <div class="lens-card" data-lens="custom" onclick="selectLens('custom', this)">
+              <div class="lens-icon">⚙</div>
+              <div class="lens-name">Custom</div>
+              <div class="lens-desc">Your personalised lens</div>
+            </div>
+          </div>
+
+          <!-- Lens Toggle -->
+          <div class="lens-toggle-row">
+            <span>Lens Power</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="lensToggle" onchange="toggleLens(this)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <!-- Intensity Slider -->
+          <div class="slider-group" id="intensityGroup" style="display:none;">
+            <label>Intensity: <span id="intensityVal">70</span>%</label>
+            <input type="range" min="0" max="100" value="70" id="intensitySlider" oninput="updateIntensity(this)">
+          </div>
+
+          <!-- Custom Lens Builder -->
+          <div class="custom-builder" id="customBuilder" style="display:none;">
+            <h4>Custom Lens Builder</h4>
+            <label>Blue Light Cut <span id="blueVal">60</span>%</label>
+            <input type="range" min="0" max="100" value="60" id="blueSlider" oninput="updateCustom('blue', this)">
+            <label>Contrast Boost <span id="contrastVal">40</span>%</label>
+            <input type="range" min="0" max="100" value="40" id="contrastSlider" oninput="updateCustom('contrast', this)">
+            <label>Warm Tint <span id="warmVal">50</span>%</label>
+            <input type="range" min="0" max="100" value="50" id="warmSlider" oninput="updateCustom('warm', this)">
+          </div>
+
+          <!-- Compare Panel -->
+          <div class="compare-panel" id="comparePanel" style="display:none;">
+            <h4>Lens Comparison</h4>
+            <div class="compare-selects">
+              <select id="compareA">
+                <option value="none">No Lens</option>
+                <option value="city">City Lens</option>
+                <option value="astronomy">Astronomy</option>
+                <option value="antiglare">Anti-Glare</option>
+                <option value="brightness">Brightness</option>
+                <option value="custom">Custom</option>
+              </select>
+              <span>vs</span>
+              <select id="compareB">
+                <option value="none">No Lens</option>
+                <option value="city" selected>City Lens</option>
+                <option value="astronomy">Astronomy</option>
+                <option value="antiglare">Anti-Glare</option>
+                <option value="brightness">Brightness</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <button class="btn-primary small" onclick="runComparison()">Compare</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Snapshot Gallery -->
+      <div class="snapshot-gallery" id="snapshotGallery">
+        <h3>Your Snapshots</h3>
+        <div class="gallery-grid" id="galleryGrid">
+          <div class="gallery-empty">Take a snapshot to see it here.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PAGE: AI LENSES ===== -->
+    <section id="lenses" class="page">
+      <div class="page-header">
+        <h2 class="page-title">AI-Powered Lenses</h2>
+        <p class="page-subtitle">Five intelligent filters engineered to transform how you experience the night sky.</p>
+      </div>
+      <div class="lenses-showcase">
+        <div class="lens-showcase-card" data-color="var(--amber)">
+          <div class="lsc-icon">🏙</div>
+          <h3>City Lens</h3>
+          <p>Engineered for urban environments. Selectively attenuates LED blue-light frequencies (450–490nm) responsible for the worst light pollution in cities, replacing harsh cold tones with warmer amber hues. Ideal for city-dwellers and suburban observers.</p>
+          <div class="lsc-tags"><span>Blue Light</span><span>Urban</span><span>LED Glare</span></div>
+          <button class="btn-ghost small" onclick="navigateTo('sky-lab'); selectLens('city');">Try It →</button>
+        </div>
+        <div class="lens-showcase-card" data-color="var(--violet)">
+          <div class="lsc-icon">🔭</div>
+          <h3>Astronomy Lens</h3>
+          <p>Maximises contrast ratio for deep-sky observation. Sharpens the luminance differential between celestial bodies and the surrounding sky, making faint nebulae, star clusters, and galaxies dramatically more visible.</p>
+          <div class="lsc-tags"><span>Contrast</span><span>Deep Sky</span><span>Nebulae</span></div>
+          <button class="btn-ghost small" onclick="navigateTo('sky-lab'); selectLens('astronomy');">Try It →</button>
+        </div>
+        <div class="lens-showcase-card" data-color="var(--teal)">
+          <div class="lsc-icon">🛡</div>
+          <h3>Anti-Glare Lens</h3>
+          <p>Neutralises point sources of artificial light — street lamps, billboards, illuminated windows — without darkening the entire visual field. Preserves the natural sky background while eliminating distracting halos.</p>
+          <div class="lsc-tags"><span>Anti-Glare</span><span>Artificial Light</span><span>Halos</span></div>
+          <button class="btn-ghost small" onclick="navigateTo('sky-lab'); selectLens('antiglare');">Try It →</button>
+        </div>
+        <div class="lens-showcase-card" data-color="var(--rose)">
+          <div class="lsc-icon">☀</div>
+          <h3>Brightness Lens</h3>
+          <p>Adapts to excessively bright environments by dynamically attenuating overall luminance while preserving colour accuracy. Useful in transition hours (dusk/dawn) or in areas with overwhelming sky-glow.</p>
+          <div class="lsc-tags"><span>Luminance</span><span>Sky-Glow</span><span>Dusk/Dawn</span></div>
+          <button class="btn-ghost small" onclick="navigateTo('sky-lab'); selectLens('brightness');">Try It →</button>
+        </div>
+        <div class="lens-showcase-card" data-color="var(--gold)">
+          <div class="lsc-icon">⚙</div>
+          <h3>Custom Lens</h3>
+          <p>Build your own personalised filter profile. Dial in precise blue-light attenuation, contrast enhancement, and warm-tint intensity. Save multiple profiles for different observation sites and share with the research community.</p>
+          <div class="lsc-tags"><span>Personalised</span><span>Profiles</span><span>Shareable</span></div>
+          <button class="btn-ghost small" onclick="navigateTo('sky-lab'); selectLens('custom');">Build It →</button>
+        </div>
+      </div>
+
+      <!-- Comparison Table -->
+      <div class="comparison-table-wrap">
+        <h3>Lens Comparison Matrix</h3>
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>🏙 City</th>
+              <th>🔭 Astronomy</th>
+              <th>🛡 Anti-Glare</th>
+              <th>☀ Brightness</th>
+              <th>⚙ Custom</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Blue Light Reduction</td><td class="high">●●●</td><td class="med">●●○</td><td class="med">●●○</td><td class="low">●○○</td><td class="high">●●●</td></tr>
+            <tr><td>Star Contrast</td><td class="low">●○○</td><td class="high">●●●</td><td class="med">●●○</td><td class="low">●○○</td><td class="high">●●●</td></tr>
+            <tr><td>Glare Suppression</td><td class="med">●●○</td><td class="low">●○○</td><td class="high">●●●</td><td class="med">●●○</td><td class="high">●●●</td></tr>
+            <tr><td>Warm Tinting</td><td class="high">●●●</td><td class="low">●○○</td><td class="low">●○○</td><td class="low">●○○</td><td class="high">●●●</td></tr>
+            <tr><td>Best For</td><td>Cities</td><td>Rural/Dark Sites</td><td>Suburbs</td><td>Bright Areas</td><td>Everywhere</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== PAGE: MAP ===== -->
+    <section id="map" class="page">
+      <div class="page-header">
+        <h2 class="page-title">Light Pollution Map</h2>
+        <p class="page-subtitle">Explore real-time light pollution levels worldwide. Find the darkest skies near you.</p>
+      </div>
+      <div class="map-layout">
+        <div class="map-card">
+          <div class="map-placeholder" id="mapPlaceholder">
+            <div class="map-overlay-message">
+              <div class="map-icon">🗺</div>
+              <h3>Interactive Light Pollution Map</h3>
+              <p>Enable location access to see local light pollution levels, or browse the global heatmap.</p>
+              <button class="btn-primary" onclick="initMap()">Enable Map & Location</button>
+              <p class="map-note">Uses Bortle Scale (1–9) — darker areas score lower.</p>
+            </div>
+            <div class="map-legend">
+              <div class="legend-item"><span class="leg-dot" style="background:#0d0d2b"></span>Bortle 1 — Pristine Dark</div>
+              <div class="legend-item"><span class="leg-dot" style="background:#1a1a6e"></span>Bortle 2–3 — Rural</div>
+              <div class="legend-item"><span class="leg-dot" style="background:#3d2b8c"></span>Bortle 4–5 — Suburban</div>
+              <div class="legend-item"><span class="leg-dot" style="background:#7b3fbe"></span>Bortle 6–7 — Urban</div>
+              <div class="legend-item"><span class="leg-dot" style="background:#c084fc"></span>Bortle 8 — City</div>
+              <div class="legend-item"><span class="leg-dot" style="background:#f0abfc"></span>Bortle 9 — Inner City</div>
+            </div>
+          </div>
+
+          <!-- Simulated Map Canvas -->
+          <canvas id="mapCanvas" width="800" height="500"></canvas>
+        </div>
+
+        <div class="map-sidebar">
+          <div class="map-search">
+            <input type="text" placeholder="Search location..." id="mapSearch" />
+            <button onclick="searchLocation()">🔍</button>
+          </div>
+          <div class="bortle-card" id="bortleCard">
+            <div class="bortle-score" id="bortleScore">—</div>
+            <div class="bortle-label" id="bortleLabel">Select a location</div>
+            <div class="bortle-desc" id="bortleDesc">Click anywhere on the map to see the Bortle scale rating for that area.</div>
+          </div>
+          <div class="recommended-spots">
+            <h4>Top Dark Sky Sites</h4>
+            <ul id="darkSitesList">
+              <li onclick="showDarkSite(this)" data-bortle="1" data-name="Cherry Springs SP, PA">🏕 Cherry Springs SP, PA<span>Bortle 1</span></li>
+              <li onclick="showDarkSite(this)" data-bortle="1" data-name="Natural Bridges NM, UT">🏕 Natural Bridges NM, UT<span>Bortle 1</span></li>
+              <li onclick="showDarkSite(this)" data-bortle="2" data-name="Mauna Kea, HI">⛰ Mauna Kea, HI<span>Bortle 2</span></li>
+              <li onclick="showDarkSite(this)" data-bortle="2" data-name="Atacama Desert, Chile">🌵 Atacama Desert, Chile<span>Bortle 2</span></li>
+              <li onclick="showDarkSite(this)" data-bortle="3" data-name="Exmoor NP, UK">🌿 Exmoor NP, UK<span>Bortle 3</span></li>
+              <li onclick="showDarkSite(this)" data-bortle="9" data-name="London, UK">🏙 London, UK<span>Bortle 9</span></li>
+              <li onclick="showDarkSite(this)" data-bortle="9" data-name="New York, USA">🏙 New York, USA<span>Bortle 9</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PAGE: EDUCATION ===== -->
+    <section id="education" class="page">
+      <div class="page-header">
+        <h2 class="page-title">Learn About Light Pollution</h2>
+        <p class="page-subtitle">A knowledge hub for astronomers, students, families, and curious minds.</p>
+      </div>
+
+      <div class="edu-topics">
+        <button class="topic-btn active" onclick="filterArticles('all', this)">All</button>
+        <button class="topic-btn" onclick="filterArticles('basics', this)">Basics</button>
+        <button class="topic-btn" onclick="filterArticles('science', this)">Science</button>
+        <button class="topic-btn" onclick="filterArticles('impact', this)">Impact</button>
+        <button class="topic-btn" onclick="filterArticles('solutions', this)">Solutions</button>
+        <button class="topic-btn" onclick="filterArticles('astronomy', this)">Astronomy</button>
+      </div>
+
+      <div class="articles-grid" id="articlesGrid">
+        <!-- Dynamically rendered by JS -->
+      </div>
+
+      <!-- Article Modal -->
+      <div class="article-modal" id="articleModal">
+        <div class="modal-backdrop" onclick="closeArticle()"></div>
+        <div class="modal-card">
+          <button class="modal-close" onclick="closeArticle()">✕</button>
+          <div id="modalContent"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PAGE: RESEARCH ===== -->
+    <section id="research" class="page">
+      <div class="page-header">
+        <h2 class="page-title">Research Hub</h2>
+        <p class="page-subtitle">Submit your own observations. Contribute to global light pollution science.</p>
+      </div>
+
+      <div class="research-layout">
+        <!-- Submit Form -->
+        <div class="research-form-card">
+          <h3>Submit Your Observation</h3>
+          <div class="form-group">
+            <label>Observation Title</label>
+            <input type="text" id="resTitle" placeholder="e.g., Milky Way visibility from downtown Manchester" />
+          </div>
+          <div class="form-group">
+            <label>Location</label>
+            <div class="location-input-row">
+              <input type="text" id="resLocation" placeholder="City or coordinates" />
+              <button class="btn-sm" onclick="autofillLocation()">📍 Auto</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Date & Time</label>
+            <input type="datetime-local" id="resDatetime" />
+          </div>
+          <div class="form-group">
+            <label>Lens Used</label>
+            <select id="resLens">
+              <option>No Lens</option>
+              <option>City Lens</option>
+              <option>Astronomy Lens</option>
+              <option>Anti-Glare Lens</option>
+              <option>Brightness Lens</option>
+              <option>Custom Lens</option>
+              <option>Galactic Goggles</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Bortle Scale at Location</label>
+            <select id="resBortle">
+              <option>1 — Pristine Dark</option>
+              <option>2 — Truly Dark</option>
+              <option>3 — Rural</option>
+              <option>4 — Rural/Suburban</option>
+              <option>5 — Suburban</option>
+              <option>6 — Bright Suburban</option>
+              <option>7 — Suburban/Urban</option>
+              <option>8 — City</option>
+              <option>9 — Inner City</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Upload Sky Image (optional)</label>
+            <div class="file-drop-zone" id="fileDropZone" onclick="document.getElementById('resImage').click()">
+              <div class="drop-icon">☁</div>
+              <p>Drop image here or click to upload</p>
+              <input type="file" id="resImage" accept="image/*" style="display:none;" onchange="previewImage(this)">
+            </div>
+            <img id="imagePreview" style="display:none; max-width:100%; border-radius:8px; margin-top:8px;" />
+          </div>
+          <div class="form-group">
+            <label>Observations & Notes</label>
+            <textarea id="resNotes" rows="4" placeholder="Describe what you observed — stars visible, interference, sky conditions, etc."></textarea>
+          </div>
+          <button class="btn-primary" onclick="submitResearch()">Submit Observation</button>
+        </div>
+
+        <!-- Community Feed -->
+        <div class="research-feed">
+          <h3>Community Observations</h3>
+          <div class="feed-filters">
+            <button class="feed-filter active" onclick="filterFeed('recent', this)">Recent</button>
+            <button class="feed-filter" onclick="filterFeed('popular', this)">Popular</button>
+            <button class="feed-filter" onclick="filterFeed('dark', this)">Darkest Sites</button>
+          </div>
+          <div id="feedList"><!-- Rendered by JS --></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PAGE: GALACTIC GOGGLES ===== -->
+    <section id="goggles" class="page">
+      <div class="goggles-hero">
+        <div class="goggles-hero-text">
+          <div class="product-eyebrow">Introducing</div>
+          <h2 class="goggles-title">Galactic Goggles</h2>
+          <p class="goggles-subtitle">The world's first AI-powered smart goggles for light pollution. Wearable astronomy, redefined.</p>
+          <div class="goggles-cta-group">
+            <button class="btn-primary large">Pre-Order Now</button>
+            <button class="btn-ghost large" onclick="scrollToSpecs()">View Specs</button>
+          </div>
+          <div class="price-tag">Starting from <strong>£349</strong></div>
+        </div>
+        <div class="goggles-3d-vis">
+          <div class="goggle-frame">
+            <div class="goggle-lens left-lens" id="goggleLensL"></div>
+            <div class="goggle-bridge"></div>
+            <div class="goggle-lens right-lens" id="goggleLensR"></div>
+            <div class="goggle-arm left-arm"></div>
+            <div class="goggle-arm right-arm"></div>
+            <div class="goggle-led"></div>
+          </div>
+          <div class="goggle-glow"></div>
+        </div>
+      </div>
+
+      <!-- Features -->
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feat-icon">🧠</div>
+          <h4>On-Board AI Processor</h4>
+          <p>Real-time lens filter computation at the edge — no internet required for core functions.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feat-icon">⚡</div>
+          <h4>18-Hour Battery</h4>
+          <p>Full night of observation on a single charge. USB-C fast charging for quick top-ups.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feat-icon">📡</div>
+          <h4>Bluetooth Sync</h4>
+          <p>Pairs with your Staarlina account. Auto-saves observations and lens profiles to the cloud.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feat-icon">🌡</div>
+          <h4>Adaptive Lenses</h4>
+          <p>All 5 AI lenses built in. Swap profiles instantly with a touch of the side button.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feat-icon">📷</div>
+          <h4>Integrated Camera</h4>
+          <p>Capture filtered sky images directly through the goggles. Share to the Research Hub instantly.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feat-icon">🌍</div>
+          <h4>GPS Location</h4>
+          <p>Automatic Bortle scale detection. Optimises lens settings for your exact position.</p>
+        </div>
+      </div>
+
+      <!-- Tech Specs -->
+      <div id="specs" class="specs-section">
+        <h3>Technical Specifications</h3>
+        <div class="specs-grid">
+          <div class="spec-row"><span>Lens Type</span><span>AI-Powered Variable Opacity with Thermal Coating</span></div>
+          <div class="spec-row"><span>Filter Range</span><span>380–700nm (full visible spectrum)</span></div>
+          <div class="spec-row"><span>AI Chip</span><span>Staarlina Neural Core v2 (4 TOPS)</span></div>
+          <div class="spec-row"><span>Connectivity</span><span>Bluetooth 5.3, Wi-Fi 6, GPS</span></div>
+          <div class="spec-row"><span>Battery</span><span>3200mAh, 18hr observation mode</span></div>
+          <div class="spec-row"><span>Camera</span><span>12MP f/1.8, RAW capture, IR support</span></div>
+          <div class="spec-row"><span>Weight</span><span>148g</span></div>
+          <div class="spec-row"><span>Weather Rating</span><span>IPX5 Water Resistant</span></div>
+          <div class="spec-row"><span>Compatibility</span><span>iOS 16+, Android 12+, Staarlina Web</span></div>
+        </div>
+      </div>
+
+      <!-- Testimonials -->
+      <div class="testimonials">
+        <h3>What Astronomers Say</h3>
+        <div class="testimonials-row">
+          <div class="testimonial-card">
+            <p>"Extraordinary. For the first time in 20 years of city-based astronomy, I could pick out M42 from my rooftop."</p>
+            <div class="testimonial-author">— Dr. Amara Chen, Astrophysicist</div>
+          </div>
+          <div class="testimonial-card">
+            <p>"My students are more engaged with light pollution science than ever before. The City Lens completely changed our field trips."</p>
+            <div class="testimonial-author">— Prof. James Okafor, Secondary School Teacher</div>
+          </div>
+          <div class="testimonial-card">
+            <p>"The custom lens builder lets me fine-tune for every site I visit. It's become an essential part of my kit."</p>
+            <div class="testimonial-author">— Sofia Reyes, Amateur Astronomer</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ======================== AUTH MODAL ======================== -->
+  <div class="auth-modal" id="authModal">
+    <div class="modal-backdrop" onclick="closeAuth()"></div>
+    <div class="auth-card">
+      <button class="modal-close" onclick="closeAuth()">✕</button>
+      <div class="auth-logo">
+        <span class="star-icon">★</span>
+        <span class="logo-text">Staar<span class="logo-accent">lina</span></span>
+      </div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchAuthTab('login', this)">Sign In</button>
+        <button class="auth-tab" onclick="switchAuthTab('register', this)">Create Account</button>
+      </div>
+
+      <!-- Social Auth -->
+      <div class="social-auth">
+        <button class="social-btn google" onclick="socialLogin('Google')">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          Continue with Google
+        </button>
+        <button class="social-btn apple" onclick="socialLogin('Apple')">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98l-.09.06c-.22.14-2.19 1.28-2.17 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.87M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          Continue with Apple
+        </button>
+        <button class="social-btn yahoo" onclick="socialLogin('Yahoo')">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="#6001D2"><path d="M0 0h24v24H0z" fill="none"/><path d="M12 2L6.5 11H17.5L12 2zM5 13l2 9h10l2-9H5z"/></svg>
+          Continue with Yahoo
+        </button>
+      </div>
+
+      <div class="auth-divider"><span>or</span></div>
+
+      <!-- Manual Form -->
+      <div id="loginForm">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="authEmail" placeholder="you@example.com" />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="authPassword" placeholder="••••••••" />
+        </div>
+        <button class="btn-primary full" onclick="manualLogin()">Sign In</button>
+        <a href="#" class="forgot-pw">Forgot password?</a>
+      </div>
+
+      <div id="registerForm" style="display:none;">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="regName" placeholder="Your name" />
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="regEmail" placeholder="you@example.com" />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="regPassword" placeholder="Create a password" />
+        </div>
+        <div class="form-group">
+          <label>I am a...</label>
+          <select id="regRole">
+            <option>Amateur Astronomer</option>
+            <option>Professional Astronomer</option>
+            <option>Student</option>
+            <option>Teacher / Educator</option>
+            <option>Family / Casual User</option>
+            <option>Researcher</option>
+          </select>
+        </div>
+        <button class="btn-primary full" onclick="registerUser()">Create Account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================== TOAST NOTIFICATION ======================== -->
+  <div id="toast" class="toast"></div>
+
+  <!-- ======================== FOOTER ======================== -->
+  <footer>
+    <div class="footer-content">
+      <div class="footer-brand">
+        <span class="star-icon">★</span>
+        <span class="logo-text">Staar<span class="logo-accent">lina</span></span>
+        <p>Restoring the night sky for everyone.</p>
+      </div>
+      <div class="footer-links">
+        <div><h5>Explore</h5>
+          <a href="#" onclick="navigateTo('sky-lab')">Sky Lab</a>
+          <a href="#" onclick="navigateTo('lenses')">AI Lenses</a>
+          <a href="#" onclick="navigateTo('map')">Pollution Map</a>
+        </div>
+        <div><h5>Learn</h5>
+          <a href="#" onclick="navigateTo('education')">Articles</a>
+          <a href="#" onclick="navigateTo('research')">Research Hub</a>
+        </div>
+        <div><h5>Products</h5>
+          <a href="#" onclick="navigateTo('goggles')">Galactic Goggles</a>
+          <a href="#">API Access</a>
+          <a href="#">Schools Programme</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2025 Staarlina. All rights reserved.</span>
+      <span>Privacy Policy · Terms of Use · Accessibility</span>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

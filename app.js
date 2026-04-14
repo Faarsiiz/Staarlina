@@ -849,7 +849,7 @@ function logoutUser() {
 
 // ===================== LANGUAGE =====================
 const translations = {
-  en: { nav_home:'Home', nav_skylab:'Sky Lab', nav_lenses:'AI Lenses', nav_map:'Pollution Map', nav_learn:'Learn', nav_research:'Research', nav_goggles:'Galactic Goggles' },
+  en: { nav_home:'Home', nav_skylab:'Sky Lab', nav_lenses:'AI Lenses', nav_map:'Pollution Map', nav_learn:'Learn', nav_research:'Research', nav_goggles:'Luminova' },
   es: { nav_home:'Inicio', nav_skylab:'Lab del Cielo', nav_lenses:'Lentes IA', nav_map:'Mapa de Contaminación', nav_learn:'Aprender', nav_research:'Investigación', nav_goggles:'Gafas Galácticas' },
   fr: { nav_home:'Accueil', nav_skylab:'Labo Ciel', nav_lenses:'Lentilles IA', nav_map:'Carte de Pollution', nav_learn:'Apprendre', nav_research:'Recherche', nav_goggles:'Lunettes Galactiques' },
   de: { nav_home:'Startseite', nav_skylab:'Himmelslabor', nav_lenses:'KI-Linsen', nav_map:'Verschmutzungskarte', nav_learn:'Lernen', nav_research:'Forschung', nav_goggles:'Galaktische Brillen' },
@@ -933,4 +933,165 @@ window.addEventListener('resize', () => {
   if (state.currentPage === 'map') {
     setTimeout(initMapCanvas, 200);
   }
+});
+
+// ===================== LUMINOVA INTERACTIVE PAGE =====================
+
+// Hotspot info panel switcher
+function selectHotspot(infoId, btn) {
+  // Reset all hotspots
+  document.querySelectorAll('.lum-hotspot').forEach(h => h.classList.remove('active'));
+  // Hide all detail panels
+  document.querySelectorAll('.lum-info-detail').forEach(d => d.style.display = 'none');
+  document.getElementById('lum-info-default').style.display = 'none';
+
+  // Activate clicked hotspot
+  btn.classList.add('active');
+
+  // Show matching detail panel
+  const panel = document.getElementById('info-' + infoId);
+  if (panel) {
+    panel.style.display = 'block';
+    panel.style.animation = 'fadeInUp 0.35s ease';
+  }
+
+  // Animate image glow based on hotspot
+  const img = document.getElementById('lumProductImg');
+  const glowMap = {
+    'ai-chip':  'brightness(1.1) saturate(1.2) hue-rotate(20deg)',
+    'lens-r':   'brightness(1.15) saturate(1.3) hue-rotate(-10deg)',
+    'lens-l':   'brightness(1.1) saturate(1.1) hue-rotate(30deg)',
+    'battery':  'brightness(1.05) saturate(1.0)',
+    'camera':   'brightness(1.2) saturate(1.15) hue-rotate(-5deg)',
+  };
+  if (img) img.style.filter = glowMap[infoId] || 'brightness(1.05)';
+}
+
+// Lens color preview in hotspot panel
+function previewLensColor(lens, btn) {
+  document.querySelectorAll('.lum-swatch').forEach(s => s.classList.remove('active'));
+  btn.classList.add('active');
+
+  const bar = document.getElementById('lumLensPreviewBar');
+  const label = document.getElementById('lumLensPreviewLabel');
+  const descriptions = {
+    city:     'Warm amber tint — LED blue-light filtered. Streets glow amber, stars pop.',
+    astro:    'Deep violet contrast mode — maximum star visibility, Milky Way enhanced.',
+    antiglare:'Teal-tinted glare suppression — halos eliminated, natural background preserved.',
+    bright:   'Rose-tinted luminance reduction — ideal for bright suburban environments.',
+    custom:   'Multi-spectrum blend — fully customisable for your observation site.',
+  };
+  const colors = {
+    city:     'linear-gradient(90deg,rgba(245,158,11,0.25),rgba(180,83,9,0.15))',
+    astro:    'linear-gradient(90deg,rgba(124,58,237,0.3),rgba(76,29,149,0.2))',
+    antiglare:'linear-gradient(90deg,rgba(20,184,166,0.25),rgba(13,148,136,0.15))',
+    bright:   'linear-gradient(90deg,rgba(236,72,153,0.25),rgba(157,23,77,0.15))',
+    custom:   'linear-gradient(90deg,rgba(234,179,8,0.2),rgba(124,58,237,0.2))',
+  };
+  if (bar) {
+    bar.style.background = colors[lens] || '';
+    bar.style.borderColor = 'var(--border-glow)';
+    bar.style.color = 'var(--white)';
+  }
+  if (label) label.textContent = descriptions[lens] || '';
+}
+
+// Blue-light slider demo on lens-l hotspot
+function updateLumBlDemo(input) {
+  const val = input.value;
+  const display = document.getElementById('lumBlVal');
+  if (display) display.textContent = val;
+
+  const warmSky = document.getElementById('warmSky');
+  if (warmSky) {
+    // As blue light reduction increases, sky shifts warmer/darker
+    const warmth = Math.round(val * 0.8);
+    warmSky.style.background = `linear-gradient(135deg, hsl(${20 - val*0.15},${60 + warmth*0.3}%,${15 + (100-val)*0.12}%), hsl(${35 - val*0.2},${70}%,${25 + (100-val)*0.15}%))`;
+  }
+}
+
+// Battery mode switcher
+function setBattMode(mode, btn) {
+  document.querySelectorAll('.lum-batt-mode').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const bar = document.getElementById('lumBattBar');
+  const label = document.getElementById('lumBattLabel');
+  const configs = {
+    observe:   { pct: 100, label: '18 hrs remaining', color: 'linear-gradient(90deg,var(--purple),var(--purple-lt))' },
+    camera:    { pct: 50,  label: '9 hrs remaining',  color: 'linear-gradient(90deg,var(--teal),#34d399)' },
+    streaming: { pct: 33,  label: '6 hrs remaining',  color: 'linear-gradient(90deg,var(--amber),#fbbf24)' },
+  };
+  const cfg = configs[mode];
+  if (bar)   { bar.style.width = cfg.pct + '%'; bar.style.background = cfg.color; }
+  if (label) label.textContent = cfg.label;
+}
+
+// Lens tab switcher for main lens section
+const lumLensData = {
+  city: {
+    title: 'City Lens',
+    desc:  'Engineered for urban environments. Selectively attenuates LED blue-light frequencies (450–490nm) — the primary contributor to city sky glow — replacing harsh cold tones with warm amber hues. Perfect for city rooftops and suburban gardens.',
+    blue: '90%', contrast: '40%', glare: '65%',
+    visClass: 'city-vis',
+    barColor: ['var(--amber)', 'var(--violet)', 'var(--teal)'],
+  },
+  astronomy: {
+    title: 'Astronomy Lens',
+    desc:  'Maximises contrast ratio for deep-sky observation. Sharpens the luminance differential between celestial bodies and the surrounding sky, making faint nebulae, star clusters, and galaxies dramatically more visible.',
+    blue: '55%', contrast: '95%', glare: '40%',
+    visClass: 'astro-vis',
+    barColor: ['var(--purple)', 'var(--purple-lt)', 'var(--violet)'],
+  },
+  antiglare: {
+    title: 'Anti-Glare Lens',
+    desc:  'Neutralises point sources of artificial light — street lamps, billboards, illuminated windows — without darkening the entire visual field. Preserves the natural sky background while eliminating distracting halos.',
+    blue: '60%', contrast: '65%', glare: '95%',
+    visClass: 'antiglare-vis',
+    barColor: ['var(--teal)', 'var(--teal)', 'var(--teal)'],
+  },
+  brightness: {
+    title: 'Brightness Lens',
+    desc:  'Adapts to excessively bright environments by dynamically attenuating overall luminance while preserving colour accuracy. Useful in transition hours (dusk/dawn) or in areas with overwhelming sky-glow.',
+    blue: '35%', contrast: '45%', glare: '70%',
+    visClass: 'brightness-vis',
+    barColor: ['var(--rose)', 'var(--pink)', 'var(--rose)'],
+  },
+  custom: {
+    title: 'Custom Lens',
+    desc:  'Build your own personalised filter profile. Dial in precise blue-light attenuation, contrast enhancement, and warm-tint intensity. Save multiple profiles for different observation sites and share with the research community.',
+    blue: '100%', contrast: '100%', glare: '100%',
+    visClass: 'custom-vis',
+    barColor: ['var(--gold)', 'var(--gold)', 'var(--gold)'],
+  },
+};
+
+function switchLumLens(lens, btn) {
+  document.querySelectorAll('.lum-lens-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+
+  const data = lumLensData[lens];
+  if (!data) return;
+
+  const titleEl = document.getElementById('lumLensTitle');
+  const descEl  = document.getElementById('lumLensDesc');
+  const visual  = document.getElementById('llcVisual');
+  const bar1    = document.getElementById('llcBar1');
+  const bar2    = document.getElementById('llcBar2');
+  const bar3    = document.getElementById('llcBar3');
+
+  if (titleEl) titleEl.textContent = data.title;
+  if (descEl)  descEl.textContent  = data.desc;
+  if (visual) {
+    visual.className = 'llc-visual ' + data.visClass;
+  }
+  if (bar1) { bar1.style.width = data.blue;     bar1.style.background = data.barColor[0]; }
+  if (bar2) { bar2.style.width = data.contrast; bar2.style.background = data.barColor[1]; }
+  if (bar3) { bar3.style.width = data.glare;    bar3.style.background = data.barColor[2]; }
+}
+
+// Init battery bar on page load
+window.addEventListener('DOMContentLoaded', () => {
+  const bar = document.getElementById('lumBattBar');
+  if (bar) bar.style.width = '100%';
 });

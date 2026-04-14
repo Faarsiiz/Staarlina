@@ -1385,3 +1385,530 @@ footer {
   .comparison-table { font-size: 0.72rem; }
   .comparison-table th, .comparison-table td { padding: 8px 10px; }
 }
+
+/* ============================================================
+   PER-PAGE FONTS
+   ============================================================ */
+
+/* Home — Cinzel (display) already applied; override eyebrow/stats with Orbitron */
+#home .hero-eyebrow,
+#home .stat-num {
+  font-family: 'Orbitron', sans-serif;
+}
+#home .hero-title {
+  font-family: 'Cinzel', serif;
+}
+#home .hero-subtitle {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.15rem;
+  font-style: italic;
+}
+
+/* Sky Lab — Exo 2 techy feel */
+#sky-lab .page-title,
+#sky-lab .panel-title,
+#sky-lab .snapshot-gallery h3 {
+  font-family: 'Exo 2', sans-serif;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+#sky-lab .hud-item,
+#sky-lab .sim-btn {
+  font-family: 'Exo 2', sans-serif;
+}
+
+/* AI Lenses — Bebas Neue headings, Josefin body */
+#lenses .page-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  letter-spacing: 4px;
+}
+#lenses .lens-showcase-card h3 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.4rem;
+  letter-spacing: 2px;
+}
+#lenses .page-subtitle,
+#lenses .lens-showcase-card p {
+  font-family: 'Josefin Sans', sans-serif;
+}
+#lenses .comparison-table th {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 0.9rem;
+  letter-spacing: 2px;
+}
+
+/* Map — Orbitron for the technical map page */
+#map .page-title {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+}
+#map .map-overlay-message h3,
+#map .map-legend h4,
+#map .map-info-panel h3 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.9rem;
+  letter-spacing: 1px;
+}
+
+/* Education — Playfair Display for editorial feel */
+#education .page-title {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  letter-spacing: 1px;
+}
+#education .page-subtitle {
+  font-family: 'Libre Baskerville', serif;
+}
+#education .article-card h3,
+#education .modal-card h2 {
+  font-family: 'Playfair Display', serif;
+}
+
+/* Research — Josefin Sans clean scientific feel */
+#research .page-title {
+  font-family: 'Josefin Sans', sans-serif;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+#research .research-form-card h3,
+#research .research-feed h3 {
+  font-family: 'Josefin Sans', sans-serif;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+/* Luminova — Orbitron + Cormorant Garamond for luxury tech */
+.luminova-page .lum-hero-title,
+.luminova-page .lum-section-title,
+.luminova-page .lum-info-detail h3,
+.luminova-page .lum-info-default h3 {
+  font-family: 'Orbitron', sans-serif;
+}
+.luminova-page .lum-hero-tagline,
+.luminova-page .lum-info-detail p,
+.luminova-page .lum-info-default p {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.05rem;
+}
+.luminova-page .lum-section-sub {
+  font-family: 'Josefin Sans', sans-serif;
+}
+#lumLensTitle {
+  font-family: 'Orbitron', sans-serif !important;
+}
+
+/* ============================================================
+   LOGO STAR MARK
+   ============================================================ */
+.logo-a-star {
+  position: relative;
+  display: inline-block;
+}
+.logo-star-mark {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.55rem;
+  color: var(--amber);
+  line-height: 1;
+  animation: starPop 2s ease-in-out infinite alternate;
+  text-shadow: 0 0 6px var(--amber);
+}
+@keyframes starPop {
+  0%   { opacity: 0.7; transform: translateX(-50%) scale(1); }
+  100% { opacity: 1;   transform: translateX(-50%) scale(1.3); }
+}
+
+/* ============================================================
+   LUMINOVA PAGE STYLES
+   ============================================================ */
+
+/* Hero */
+.lum-hero {
+  text-align: center;
+  padding: 40px 0 60px;
+  position: relative;
+}
+.lum-hero-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--purple), var(--pink));
+  color: #fff;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 3px;
+  padding: 6px 18px;
+  border-radius: 20px;
+  margin-bottom: 24px;
+  text-transform: uppercase;
+}
+.lum-hero-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(3.5rem, 9vw, 7rem);
+  font-weight: 900;
+  letter-spacing: 8px;
+  background: linear-gradient(135deg, #fff 30%, var(--purple-lt) 60%, var(--amber) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 16px;
+  line-height: 1;
+}
+.lum-hero-tagline {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.35rem;
+  font-style: italic;
+  color: var(--muted);
+  margin-bottom: 36px;
+}
+.lum-hero-cta {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Product Viewer */
+.lum-product-viewer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-bottom: 64px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .lum-product-viewer { grid-template-columns: 1fr; }
+}
+
+.lum-img-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.lum-img-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #040210;
+  box-shadow: 0 0 60px rgba(124,58,237,0.25);
+}
+.lum-product-img {
+  width: 100%;
+  display: block;
+  object-fit: cover;
+  filter: brightness(1.05) saturate(1.1);
+  transition: filter 0.6s ease;
+}
+.lum-img-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-family: 'Space Mono', monospace;
+  letter-spacing: 1px;
+  animation: hintPulse 2.5s ease-in-out infinite;
+}
+@keyframes hintPulse { 0%,100%{opacity:0.5} 50%{opacity:1} }
+
+/* Hotspots */
+.lum-hotspot {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+.hs-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(168, 85, 247, 0.3);
+  animation: hsPulse 2s ease-in-out infinite;
+}
+.hs-dot {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--purple-lt);
+  border: 2px solid #fff;
+  box-shadow: 0 0 10px var(--purple-lt);
+  transition: transform 0.2s ease;
+}
+.lum-hotspot:hover .hs-dot { transform: translate(-50%, -50%) scale(1.4); }
+.lum-hotspot.active .hs-dot { background: var(--amber); box-shadow: 0 0 14px var(--amber); }
+.lum-hotspot.active .hs-pulse { background: rgba(245, 158, 11, 0.35); }
+@keyframes hsPulse {
+  0%,100% { transform: scale(1); opacity: 0.8; }
+  50%      { transform: scale(2); opacity: 0; }
+}
+
+/* Info Panel */
+.lum-info-panel {
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 32px 28px;
+  backdrop-filter: blur(12px);
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+.lum-info-icon {
+  font-size: 2.2rem;
+  margin-bottom: 14px;
+}
+.lum-info-default h3,
+.lum-info-detail h3 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--white);
+}
+.lum-info-default p,
+.lum-info-detail p {
+  color: var(--muted);
+  line-height: 1.7;
+  margin-bottom: 20px;
+  font-size: 1rem;
+}
+.lum-chip-badge {
+  display: inline-block;
+  background: rgba(124,58,237,0.2);
+  border: 1px solid var(--border-glow);
+  color: var(--purple-lt);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  padding: 5px 12px;
+  border-radius: 20px;
+  margin-bottom: 14px;
+  letter-spacing: 0.5px;
+}
+
+/* Quick stats */
+.lum-quick-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 8px;
+}
+.lqs {
+  background: var(--bg-card2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 8px;
+  text-align: center;
+}
+.lqs-num {
+  display: block;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--purple-lt);
+  margin-bottom: 4px;
+}
+.lqs-label {
+  font-size: 0.65rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Detail list */
+.lum-detail-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.lum-detail-list li {
+  font-size: 0.84rem;
+  color: var(--muted);
+  padding-left: 18px;
+  position: relative;
+  line-height: 1.5;
+}
+.lum-detail-list li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--purple-lt);
+}
+
+/* Lens Selector (hotspot) */
+.lum-lens-selector { margin-top: 8px; }
+.lum-ls-label { font-size: 0.78rem; color: var(--muted); margin-bottom: 10px; }
+.lum-lens-swatches { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.lum-swatch {
+  border: 2px solid transparent;
+  color: #fff;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.lum-swatch:hover { transform: scale(1.05); border-color: rgba(255,255,255,0.4); }
+.lum-swatch.active { border-color: #fff; transform: scale(1.08); }
+.lum-lens-preview-bar {
+  background: var(--bg-card2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  min-height: 38px;
+  transition: all 0.4s ease;
+}
+
+/* Blue-light demo */
+.lum-bl-demo { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.lum-bl-demo label { font-size: 0.82rem; color: var(--muted); }
+.lum-bl-compare { display: flex; gap: 16px; margin-top: 4px; }
+.lum-bl-before, .lum-bl-after { flex: 1; font-size: 0.72rem; color: var(--muted); text-align: center; }
+.lum-sky-swatch {
+  height: 40px;
+  border-radius: 8px;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  transition: all 0.4s ease;
+}
+.blue-sky  { background: linear-gradient(135deg, #1e3a8a, #3b82f6, #93c5fd); }
+.warm-sky  { background: linear-gradient(135deg, #1c0a00, #78350f, #b45309); }
+
+/* Battery */
+.lum-battery-vis { margin-top: 12px; }
+.lum-batt-outer {
+  background: var(--bg-card2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  height: 32px;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.lum-batt-inner {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, var(--purple), var(--purple-lt));
+  border-radius: 8px;
+  transition: width 0.6s ease;
+}
+.lum-batt-label {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.72rem;
+  font-family: 'Space Mono', monospace;
+  color: #fff;
+  white-space: nowrap;
+}
+.lum-batt-modes { display: flex; flex-direction: column; gap: 6px; }
+.lum-batt-mode {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-card2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.lum-batt-mode:hover { border-color: var(--purple-lt); }
+.lum-batt-mode.active { border-color: var(--purple-lt); background: rgba(124,58,237,0.15); color: var(--purple-lt); }
+.lum-batt-mode span { font-family: 'Space Mono', monospace; font-size: 0.75rem; }
+
+/* Lens Section */
+.lum-lens-section {
+  margin-bottom: 64px;
+}
+.lum-section-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  letter-spacing: 2px;
+  color: var(--white);
+}
+.lum-section-sub {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+}
+.lum-lens-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.lum-lens-tab {
+  background: var(--bg-card2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 9px 20px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+.lum-lens-tab:hover { border-color: var(--purple-lt); color: var(--white); }
+.lum-lens-tab.active {
+  border-color: var(--purple-lt);
+  background: rgba(124,58,237,0.2);
+  color: var(--purple-lt);
+  box-shadow: 0 0 16px rgba(124,58,237,0.25);
+}
+.lum-lens-content {
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 240px;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+}
+@media (max-width: 768px) {
+  .lum-lens-content { grid-template-columns: 1fr; }
+}
+.llc-visual {
+  min-height: 220px;
+  transition: background 0.5s ease;
+}
+.city-vis     { background: radial-gradient(ellipse at 30% 70%, rgba(245,158,11,0.35) 0%, rgba(4,2,15,0.9) 70%); }
+.astro-vis    { background: radial-gradient(ellipse at 50% 50%, rgba(124,58,237,0.5) 0%, rgba(0,0,10,0.95) 70%); }
+.antiglare-vis { background: radial-gradient(ellipse at 70% 40%, rgba(20,184,166,0.4) 0%, rgba(4,2,15,0.9) 70%); }
+.brightness-vis { background: radial-gradient(ellipse at 50% 30%, rgba(236,72,153,0.4) 0%, rgba(4,2,15,0.9) 70%); }
+.custom-vis   { background: radial-gradient(ellipse at 40% 60%, rgba(234,179,8,0.35) 10%, rgba(124,58,237,0.25) 60%, rgba(4,2,15,0.9) 90%); }
+
+.llc-text {
+  padding: 28px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.llc-text h4 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--white);
+  letter-spacing: 2px;
+}
+.llc-text p { font-size: 0.85rem; color: var(--muted); line-height: 1.65; }
+.llc-bars { display: flex; flex-direction: column; gap: 8px; }
+.llc-bar-row { display: flex; flex-direction: column; gap: 3px; font-size: 0.72rem; color: var(--muted); }
+.llc-bar-track { background: var(--bg-card2); border-radius: 4px; height: 6px; overflow: hidden; }
+.llc-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }

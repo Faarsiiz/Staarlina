@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Raleway:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Raleway:wght@300;400;500;600&family=Space+Mono:wght@400;700&family=Orbitron:wght@400;700;900&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Exo+2:wght@300;400;600;800&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Josefin+Sans:wght@300;400;600;700&family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
 </head>
 <body>
 
@@ -21,7 +21,7 @@
   <nav id="navbar">
     <div class="nav-logo">
       <span class="star-icon">★</span>
-      <span class="logo-text">Staar<span class="logo-accent">lina</span></span>
+      <span class="logo-text">St<span class="logo-a-star">a<span class="logo-star-mark">✦</span></span>ar<span class="logo-accent">lina</span></span>
     </div>
     <ul class="nav-links" id="navLinks">
       <li><a href="#home" class="nav-link active" data-page="home">Home</a></li>
@@ -30,7 +30,7 @@
       <li><a href="#map" class="nav-link" data-page="map">Pollution Map</a></li>
       <li><a href="#education" class="nav-link" data-page="education">Learn</a></li>
       <li><a href="#research" class="nav-link" data-page="research">Research</a></li>
-      <li><a href="#goggles" class="nav-link" data-page="goggles">Galactic Goggles</a></li>
+      <li><a href="#goggles" class="nav-link" data-page="goggles">Luminova</a></li>
     </ul>
     <div class="nav-actions">
       <div class="lang-selector">
@@ -70,7 +70,7 @@
             <span>Launch Sky Lab</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </button>
-          <button class="btn-ghost" onclick="navigateTo('goggles')">Discover Galactic Goggles</button>
+          <button class="btn-ghost" onclick="navigateTo('goggles')">Discover Luminova</button>
         </div>
         <div class="hero-stats">
           <div class="stat"><span class="stat-num">83%</span><span class="stat-label">of World Lives Under Light-Polluted Skies</span></div>
@@ -429,7 +429,7 @@
               <option>Anti-Glare Lens</option>
               <option>Brightness Lens</option>
               <option>Custom Lens</option>
-              <option>Galactic Goggles</option>
+              <option>Luminova</option>
             </select>
           </div>
           <div class="form-group">
@@ -475,68 +475,153 @@
       </div>
     </section>
 
-    <!-- ===== PAGE: GALACTIC GOGGLES ===== -->
-    <section id="goggles" class="page">
-      <div class="goggles-hero">
-        <div class="goggles-hero-text">
-          <div class="product-eyebrow">Introducing</div>
-          <h2 class="goggles-title">Galactic Goggles</h2>
-          <p class="goggles-subtitle">The world's first AI-powered smart goggles for light pollution. Wearable astronomy, redefined.</p>
-          <div class="goggles-cta-group">
-            <button class="btn-primary large">Pre-Order Now</button>
-            <button class="btn-ghost large" onclick="scrollToSpecs()">View Specs</button>
-          </div>
-          <div class="price-tag">Starting from <strong>£349</strong></div>
-        </div>
-        <div class="goggles-3d-vis">
-          <div class="goggle-frame">
-            <div class="goggle-lens left-lens" id="goggleLensL"></div>
-            <div class="goggle-bridge"></div>
-            <div class="goggle-lens right-lens" id="goggleLensR"></div>
-            <div class="goggle-arm left-arm"></div>
-            <div class="goggle-arm right-arm"></div>
-            <div class="goggle-led"></div>
-          </div>
-          <div class="goggle-glow"></div>
+    <!-- ===== PAGE: LUMINOVA ===== -->
+    <section id="goggles" class="page luminova-page">
+
+      <!-- Hero Banner -->
+      <div class="lum-hero">
+        <div class="lum-hero-badge">✦ NEW PRODUCT</div>
+        <h2 class="lum-hero-title">Luminova</h2>
+        <p class="lum-hero-tagline">AI-Powered Smart Goggles for the Night Sky</p>
+        <div class="lum-hero-cta">
+          <button class="btn-primary large" onclick="showToast('Pre-order coming soon! Join the waitlist.', 'success')">Pre-Order — £349</button>
+          <button class="btn-ghost large" onclick="document.getElementById('lum-specs').scrollIntoView({behavior:'smooth'})">View Specs ↓</button>
         </div>
       </div>
 
-      <!-- Features -->
-      <div class="features-grid">
-        <div class="feature-card">
-          <div class="feat-icon">🧠</div>
-          <h4>On-Board AI Processor</h4>
-          <p>Real-time lens filter computation at the edge — no internet required for core functions.</p>
+      <!-- Interactive Product Viewer -->
+      <div class="lum-product-viewer">
+        <div class="lum-img-panel">
+          <div class="lum-img-wrapper" id="lumImgWrapper">
+            <img src="IMG_0439.png" alt="Luminova AI Night Vision Goggles" class="lum-product-img" id="lumProductImg" />
+            <button class="lum-hotspot" style="top:20%;left:16%;" data-info="ai-chip" onclick="selectHotspot('ai-chip',this)"><span class="hs-pulse"></span><span class="hs-dot"></span></button>
+            <button class="lum-hotspot" style="top:40%;left:76%;" data-info="lens-r" onclick="selectHotspot('lens-r',this)"><span class="hs-pulse"></span><span class="hs-dot"></span></button>
+            <button class="lum-hotspot" style="top:44%;left:26%;" data-info="lens-l" onclick="selectHotspot('lens-l',this)"><span class="hs-pulse"></span><span class="hs-dot"></span></button>
+            <button class="lum-hotspot" style="top:72%;left:50%;" data-info="battery" onclick="selectHotspot('battery',this)"><span class="hs-pulse"></span><span class="hs-dot"></span></button>
+            <button class="lum-hotspot" style="top:24%;left:60%;" data-info="camera" onclick="selectHotspot('camera',this)"><span class="hs-pulse"></span><span class="hs-dot"></span></button>
+          </div>
+          <p class="lum-img-hint">✦ Click the glowing points to explore features</p>
         </div>
-        <div class="feature-card">
-          <div class="feat-icon">⚡</div>
-          <h4>18-Hour Battery</h4>
-          <p>Full night of observation on a single charge. USB-C fast charging for quick top-ups.</p>
+
+        <div class="lum-info-panel">
+          <div class="lum-info-default" id="lum-info-default">
+            <div class="lum-info-icon">✦</div>
+            <h3>Explore Luminova</h3>
+            <p>Click any glowing hotspot on the goggles image to discover the technology built inside.</p>
+            <div class="lum-quick-stats">
+              <div class="lqs"><span class="lqs-num">5</span><span class="lqs-label">AI Lenses</span></div>
+              <div class="lqs"><span class="lqs-num">18h</span><span class="lqs-label">Battery</span></div>
+              <div class="lqs"><span class="lqs-num">12MP</span><span class="lqs-label">Camera</span></div>
+              <div class="lqs"><span class="lqs-num">148g</span><span class="lqs-label">Weight</span></div>
+            </div>
+          </div>
+
+          <div class="lum-info-detail" id="info-ai-chip" style="display:none;">
+            <div class="lum-info-icon">🧠</div>
+            <h3>Staarlina Neural Core v2</h3>
+            <div class="lum-chip-badge">4 TOPS · Edge AI · No Internet Required</div>
+            <p>The heart of Luminova. This custom AI chip processes lens filters in real-time at the edge — computing blue-light reduction, contrast enhancement, and glare suppression frame-by-frame without any cloud dependency.</p>
+            <ul class="lum-detail-list">
+              <li>Real-time filter computation at 60fps</li>
+              <li>Adaptive algorithm learns your preferences</li>
+              <li>Works fully offline in dark sky reserves</li>
+              <li>OTA firmware updates via Staarlina app</li>
+            </ul>
+          </div>
+
+          <div class="lum-info-detail" id="info-lens-r" style="display:none;">
+            <div class="lum-info-icon">🔭</div>
+            <h3>Right AI Lens — Master Filter</h3>
+            <div class="lum-chip-badge">380–700nm · Variable Opacity · Thermal Coat</div>
+            <p>Luminova's lenses are dynamic electro-chromic panels that adjust their filtering properties in milliseconds based on the active AI profile.</p>
+            <div class="lum-lens-selector">
+              <p class="lum-ls-label">Preview lens colour profile:</p>
+              <div class="lum-lens-swatches">
+                <button class="lum-swatch" onclick="previewLensColor('city',this)" style="background:linear-gradient(135deg,#f59e0b,#d97706)">🏙 City</button>
+                <button class="lum-swatch" onclick="previewLensColor('astro',this)" style="background:linear-gradient(135deg,#7c3aed,#4c1d95)">🔭 Astro</button>
+                <button class="lum-swatch" onclick="previewLensColor('antiglare',this)" style="background:linear-gradient(135deg,#14b8a6,#0d9488)">🛡 Anti-Glare</button>
+                <button class="lum-swatch" onclick="previewLensColor('bright',this)" style="background:linear-gradient(135deg,#ec4899,#9d174d)">☀ Brightness</button>
+                <button class="lum-swatch" onclick="previewLensColor('custom',this)" style="background:linear-gradient(135deg,#eab308,#92400e)">⚙ Custom</button>
+              </div>
+              <div class="lum-lens-preview-bar" id="lumLensPreviewBar"><span id="lumLensPreviewLabel">Select a lens above</span></div>
+            </div>
+          </div>
+
+          <div class="lum-info-detail" id="info-lens-l" style="display:none;">
+            <div class="lum-info-icon">🛡</div>
+            <h3>Left AI Lens — Blue-Light Guard</h3>
+            <div class="lum-chip-badge">450–490nm Block · Warm Shift · Glare Cancel</div>
+            <p>Tuned to target the 450–490nm blue-light range most responsible for light pollution. Shifts the warm-cool colour balance for comfortable prolonged observation.</p>
+            <div class="lum-bl-demo">
+              <label>Blue Light Reduction: <span id="lumBlVal">65</span>%</label>
+              <input type="range" min="0" max="100" value="65" id="lumBlSlider" oninput="updateLumBlDemo(this)" />
+              <div class="lum-bl-compare">
+                <div class="lum-bl-before">Without Lens<div class="lum-sky-swatch blue-sky"></div></div>
+                <div class="lum-bl-after">With Lens<div class="lum-sky-swatch warm-sky" id="warmSky"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="lum-info-detail" id="info-battery" style="display:none;">
+            <div class="lum-info-icon">⚡</div>
+            <h3>3200mAh Endurance Battery</h3>
+            <div class="lum-chip-badge">18hr Observation · USB-C Fast Charge · IPX5</div>
+            <p>Designed for full-night astronomy sessions. Outlasts any standard observation window from sunset to sunrise. IPX5 water resistance handles dew and coastal humidity.</p>
+            <div class="lum-battery-vis">
+              <div class="lum-batt-outer"><div class="lum-batt-inner" id="lumBattBar"></div><span class="lum-batt-label" id="lumBattLabel">18 hrs remaining</span></div>
+              <div class="lum-batt-modes">
+                <div class="lum-batt-mode active" onclick="setBattMode('observe',this)">🔭 Observe Mode<span>18h</span></div>
+                <div class="lum-batt-mode" onclick="setBattMode('camera',this)">📷 Camera Mode<span>9h</span></div>
+                <div class="lum-batt-mode" onclick="setBattMode('streaming',this)">📡 Streaming<span>6h</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="lum-info-detail" id="info-camera" style="display:none;">
+            <div class="lum-info-icon">📷</div>
+            <h3>12MP Filtered Sky Camera</h3>
+            <div class="lum-chip-badge">f/1.8 · RAW Capture · IR Support · Instant Share</div>
+            <p>Every photo taken through Luminova is automatically processed through the active AI lens filter. Capture the Milky Way as you see it, then share to the Research Hub instantly.</p>
+            <ul class="lum-detail-list">
+              <li>f/1.8 wide aperture for low-light capture</li>
+              <li>RAW + JPEG dual format storage</li>
+              <li>Infrared support for nebula photography</li>
+              <li>One-tap share to Research Hub</li>
+              <li>GPS metadata embedded in each image</li>
+            </ul>
+            <button class="btn-ghost small" onclick="navigateTo('sky-lab'); showToast('Try the camera in Sky Lab!', 'success')">Try Camera in Sky Lab →</button>
+          </div>
         </div>
-        <div class="feature-card">
-          <div class="feat-icon">📡</div>
-          <h4>Bluetooth Sync</h4>
-          <p>Pairs with your Staarlina account. Auto-saves observations and lens profiles to the cloud.</p>
+      </div>
+
+      <!-- Interactive Lens Switcher -->
+      <div class="lum-lens-section">
+        <h3 class="lum-section-title">5 AI-Powered Lens Profiles</h3>
+        <p class="lum-section-sub">Switch between profiles with a single button press. Each lens is purpose-built for a different environment.</p>
+        <div class="lum-lens-tabs">
+          <button class="lum-lens-tab active" data-lens="city" onclick="switchLumLens('city',this)">🏙 City</button>
+          <button class="lum-lens-tab" data-lens="astronomy" onclick="switchLumLens('astronomy',this)">🔭 Astronomy</button>
+          <button class="lum-lens-tab" data-lens="antiglare" onclick="switchLumLens('antiglare',this)">🛡 Anti-Glare</button>
+          <button class="lum-lens-tab" data-lens="brightness" onclick="switchLumLens('brightness',this)">☀ Brightness</button>
+          <button class="lum-lens-tab" data-lens="custom" onclick="switchLumLens('custom',this)">⚙ Custom</button>
         </div>
-        <div class="feature-card">
-          <div class="feat-icon">🌡</div>
-          <h4>Adaptive Lenses</h4>
-          <p>All 5 AI lenses built in. Swap profiles instantly with a touch of the side button.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feat-icon">📷</div>
-          <h4>Integrated Camera</h4>
-          <p>Capture filtered sky images directly through the goggles. Share to the Research Hub instantly.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feat-icon">🌍</div>
-          <h4>GPS Location</h4>
-          <p>Automatic Bortle scale detection. Optimises lens settings for your exact position.</p>
+        <div class="lum-lens-content" id="lumLensContent">
+          <div class="llc-visual city-vis" id="llcVisual"></div>
+          <div class="llc-text">
+            <h4 id="lumLensTitle">City Lens</h4>
+            <p id="lumLensDesc">Engineered for urban environments. Selectively attenuates LED blue-light frequencies (450–490nm) — the primary contributor to city sky glow — replacing harsh cold tones with warm amber hues.</p>
+            <div class="llc-bars" id="lumLensBars">
+              <div class="llc-bar-row"><span>Blue Light Reduction</span><div class="llc-bar-track"><div class="llc-bar-fill" id="llcBar1" style="width:90%;background:var(--amber)"></div></div></div>
+              <div class="llc-bar-row"><span>Star Contrast</span><div class="llc-bar-track"><div class="llc-bar-fill" id="llcBar2" style="width:40%;background:var(--violet)"></div></div></div>
+              <div class="llc-bar-row"><span>Glare Suppression</span><div class="llc-bar-track"><div class="llc-bar-fill" id="llcBar3" style="width:65%;background:var(--teal)"></div></div></div>
+            </div>
+            <button class="btn-ghost small" onclick="navigateTo('sky-lab')">Try in Sky Lab →</button>
+          </div>
         </div>
       </div>
 
       <!-- Tech Specs -->
-      <div id="specs" class="specs-section">
+      <div id="lum-specs" class="specs-section" style="scroll-margin-top:80px;">
         <h3>Technical Specifications</h3>
         <div class="specs-grid">
           <div class="spec-row"><span>Lens Type</span><span>AI-Powered Variable Opacity with Thermal Coating</span></div>
@@ -580,7 +665,7 @@
       <button class="modal-close" onclick="closeAuth()">✕</button>
       <div class="auth-logo">
         <span class="star-icon">★</span>
-        <span class="logo-text">Staar<span class="logo-accent">lina</span></span>
+        <span class="logo-text">St<span class="logo-a-star">a<span class="logo-star-mark">✦</span></span>ar<span class="logo-accent">lina</span></span>
       </div>
       <div class="auth-tabs">
         <button class="auth-tab active" onclick="switchAuthTab('login', this)">Sign In</button>
@@ -656,7 +741,7 @@
     <div class="footer-content">
       <div class="footer-brand">
         <span class="star-icon">★</span>
-        <span class="logo-text">Staar<span class="logo-accent">lina</span></span>
+        <span class="logo-text">St<span class="logo-a-star">a<span class="logo-star-mark">✦</span></span>ar<span class="logo-accent">lina</span></span>
         <p>Restoring the night sky for everyone.</p>
       </div>
       <div class="footer-links">
@@ -670,7 +755,7 @@
           <a href="#" onclick="navigateTo('research')">Research Hub</a>
         </div>
         <div><h5>Products</h5>
-          <a href="#" onclick="navigateTo('goggles')">Galactic Goggles</a>
+          <a href="#" onclick="navigateTo('goggles')">Luminova</a>
           <a href="#">API Access</a>
           <a href="#">Schools Programme</a>
         </div>

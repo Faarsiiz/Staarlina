@@ -1,9 +1,20 @@
-/* ============================================================
-   STAARLINA — app.js
-   Galaxy-themed light pollution platform
-   ============================================================ */
-
 'use strict';
+
+// ===================== SUPABASE INIT =====================
+const supabaseUrl = 'YOUR_SUPABASE_PROJECT_URL';
+const supabaseKey = 'YOUR_SUPABASE_ANON_KEY';
+const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+// Listen for auth state changes to keep the UI in sync
+supabase.auth.onAuthStateChange((event, session) => {
+  if (session) {
+    state.user = session.user;
+    document.getElementById('loginBtn').textContent = `👤 ${session.user.email.split('@')[0]}`;
+  } else {
+    state.user = null;
+    document.getElementById('loginBtn').textContent = 'Sign In';
+  }
+});
 
 // ===================== STATE =====================
 const state = {
@@ -767,29 +778,48 @@ function previewImage(input) {
   }
 }
 
-function submitResearch() {
+// ===================== RESEARCH FORM =====================
+
+async function submitResearch() {
   const title    = document.getElementById('resTitle').value.trim();
   const location = document.getElementById('resLocation').value.trim();
   const notes    = document.getElementById('resNotes').value.trim();
-  if (!title || !location) { showToast('Please fill in title and location', 'error'); return; }
-  if (!state.user) { showToast('Please sign in to submit research', 'error'); openAuth(); return; }
+  
+  if (!title || !location) { 
+    showToast('Please fill in title and location', 'error'); 
+    return; 
+  }
+  
+  if (!state.user) { 
+    showToast('Please sign in to submit research', 'error'); 
+    openAuth(); 
+    return; 
+  }
 
   const newEntry = {
-    id: sampleFeed.length + 1,
-    title, location,
+    title: title,
+    location: location,
     bortle: parseInt(document.getElementById('resBortle').value) || 5,
     lens: document.getElementById('resLens').value,
-    date: 'Just now',
-    user: `@${state.user.name.replace(/\s/g,'_').toLowerCase()}`,
     notes: notes || 'Observation submitted via Staarlina.',
-    upvotes: 0,
+    user_email: state.user.email
   };
-  sampleFeed.unshift(newEntry);
+
+  const { data, error } = await supabase
+    .from('observations')
+    .insert([newEntry]);
+
+  if (error) {
+    showToast(`Error: ${error.message}`, 'error');
+    return;
+  }
+
   showToast('Observation submitted! Thank you for contributing.', 'success');
+  
+  // Clear the form fields
   document.getElementById('resTitle').value = '';
   document.getElementById('resLocation').value = '';
   document.getElementById('resNotes').value = '';
-  renderFeed('recent');
 }
 
 // ===================== AUTH =====================
@@ -813,20 +843,51 @@ function switchAuthTab(tab, btn) {
   document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
 }
 
-function manualLogin() {
+async function manualLogin() {
   const email = document.getElementById('authEmail').value.trim();
-  const pass  = document.getElementById('authPassword').value;
-  if (!email || !pass) { showToast('Please fill in all fields', 'error'); return; }
-  const name = email.split('@')[0];
-  loginSuccess({ name, email, provider: 'email' });
+  const password  = document.getElementById('authPassword').value;
+  
+  if (!email || !password) { 
+    showToast('Please fill in all fields', 'error'); 
+    return; 
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email,
+    password: password,
+  });
+
+  if (error) {
+    showToast(error.message, 'error');
+    return;
+  }
+
+  loginSuccess({ name: data.user.email.split('@')[0], email: data.user.email, provider: 'email' });
 }
 
-function registerUser() {
+sync function registerUser() {
   const name  = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim();
-  const pass  = document.getElementById('regPassword').value;
-  if (!name || !email || !pass) { showToast('Please fill in all fields', 'error'); return; }
-  loginSuccess({ name, email, provider: 'email', role: document.getElementById('regRole').value });
+  const password  = document.getElementById('regPassword').value;
+  
+  if (!name || !email || !password) { 
+    showToast('Please fill in all fields', 'error'); 
+    return; 
+  }
+
+  const { data, error } = await supabase.auth.signUp({
+    email: email,
+    password: password,
+  });
+
+  if (error) {
+    showToast(error.message, 'error');
+    return;
+  }
+
+  showToast('Registration successful! You can now log in.', 'success');
+  // Auto-switch back to the login tab
+  switchAuthTab('login', document.querySelector('.auth-tab[onclick*="login"]'));
 }
 
 function socialLogin(provider) {
@@ -841,10 +902,16 @@ function loginSuccess(user) {
   showToast(`Welcome, ${user.name}!`, 'success');
 }
 
-function logoutUser() {
-  state.user = null;
-  document.getElementById('loginBtn').textContent = 'Sign In';
-  showToast('Signed out');
+async function logoutUser() {
+  const { error } = await supabase.auth.signOut();
+  
+  if (error) {
+    showToast(error.message, 'error');
+    return;
+  }
+  
+  showToast('Signed out successfully', 'success');
+  // State and UI reset is handled automatically by the onAuthStateChange listener
 }
 
 // ===================== LANGUAGE =====================

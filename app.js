@@ -18,19 +18,12 @@ const SUPABASE_ANON = 'sb_publishable_-rWV5BTBjx8eXL4vuCFPmg_PyQt5wBl';         
 // ===================== SUPABASE CLIENT =====================
 // Loaded via <script> tag in index.html (CDN, no build tool needed).
 // The global `supabase` object is created here and used throughout.
-//
-// persistSession:true   → stores the JWT + refresh token in localStorage
-//                         so it survives page refreshes.
-// autoRefreshToken:true → silently renews the token before it expires
-//                         so users stay logged in during long sessions.
-// detectSessionInUrl:true → picks up the session from the URL hash on
-//                         password-reset and email-confirmation redirects.
 const { createClient } = window.supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON, {
   auth: {
-    persistSession:     true,
-    autoRefreshToken:   true,
-    detectSessionInUrl: true,
+    persistSession:     true,  // write JWT to localStorage so it survives refresh
+    autoRefreshToken:   true,  // silently renew before expiry
+    detectSessionInUrl: true,  // handle email-confirm / password-reset redirects
   },
 });
 
@@ -52,11 +45,11 @@ const state = {
 };
 
 // ===================== SESSION BOOTSTRAP =====================
-// Explicitly calls getSession() on every page load to pull the
-// stored JWT from localStorage and hydrate state BEFORE any
-// user interaction.  This is the primary fix for the
-// "logged out on refresh" bug — onAuthStateChange alone fires
-// asynchronously and too late for the initial nav render.
+// Reads any stored session from localStorage immediately when the
+// script loads. This runs before DOMContentLoaded, so by the time
+// the loginBtn listener is attached, state.user is already correct
+// and the button renders with the right label from the first paint.
+// This is the fix for "button broken / shows Sign In after register".
 (async function bootstrapSession() {
   const { data: { session } } = await db.auth.getSession();
   if (session?.user) {
@@ -67,10 +60,10 @@ const state = {
 })();
 
 // ===================== AUTH LISTENER =====================
-// Handles all subsequent auth events after bootstrap.
-// INITIAL_SESSION is deliberately skipped — bootstrapSession
-// already handled it, and acting on it twice causes the nav
-// button to briefly show "Sign In" before re-rendering.
+// Fires on SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, USER_UPDATED.
+// We skip INITIAL_SESSION because bootstrapSession() above already
+// handled it — handling it twice causes the button to flicker back
+// to "Sign In" before snapping to the correct name.
 db.auth.onAuthStateChange(async (event, session) => {
   if (event === 'INITIAL_SESSION') return;
 
@@ -82,12 +75,11 @@ db.auth.onAuthStateChange(async (event, session) => {
     if (state.userLocation) {
       await saveLocationToDB(state.userLocation.lat, state.userLocation.lng);
     }
-
     await loadResearchFeed('recent');
 
     if (event === 'SIGNED_IN') {
       const name = state.profile?.display_name || session.user.email.split('@')[0];
-      showToast(`Welcome back, ${name}! 🌌`, 'success');
+      showToast(`Welcome, ${name}! 🌌`, 'success');
       closeAuth();
     }
   } else {
@@ -817,17 +809,8 @@ function openAuth() {
 function closeAuth() {
   document.getElementById('authModal').classList.remove('open');
   document.body.style.overflow = '';
-  // Clear any password fields when modal closes for security
-  const pwd = document.getElementById('authPassword');
-  const rpwd = document.getElementById('regPassword');
-  if (pwd)  pwd.value  = '';
-  if (rpwd) rpwd.value = '';
 }
 
-// The listener reads state.user at click-time, not at parse-time.
-// bootstrapSession() above ensures state.user is correctly set
-// before the user can ever click this button, so it always
-// behaves correctly after a page refresh.
 document.getElementById('loginBtn').addEventListener('click', () => {
   if (state.user) {
     logoutUser();
@@ -843,23 +826,21 @@ function switchAuthTab(tab, btn) {
   document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
 }
 
-// Sign In with email + password
 async function manualLogin() {
   const email = document.getElementById('authEmail').value.trim();
   const pass  = document.getElementById('authPassword').value;
   if (!email || !pass) { showToast('Please fill in all fields', 'error'); return; }
 
-  const btn = document.querySelector('#loginForm .btn-primary.full');
+  const btn = document.querySelector('#loginForm .btn-primary');
   if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
 
   const { error } = await db.auth.signInWithPassword({ email, password: pass });
 
   if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; }
   if (error) { showToast(`Login failed: ${error.message}`, 'error'); }
-  // On success onAuthStateChange (SIGNED_IN) handles the rest
+  // On success, SIGNED_IN fires in onAuthStateChange → closeAuth() + updateNavForUser()
 }
 
-// Create a new app-exclusive account
 async function registerUser() {
   const name  = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim();
@@ -869,7 +850,7 @@ async function registerUser() {
   if (!name || !email || !pass) { showToast('Please fill in all fields', 'error'); return; }
   if (pass.length < 6) { showToast('Password must be at least 6 characters', 'error'); return; }
 
-  const btn = document.querySelector('#registerForm .btn-primary.full');
+  const btn = document.querySelector('#registerForm .btn-primary');
   if (btn) { btn.disabled = true; btn.textContent = 'Creating account…'; }
 
   const { data, error } = await db.auth.signUp({
@@ -880,38 +861,38 @@ async function registerUser() {
 
   if (btn) { btn.disabled = false; btn.textContent = 'Create Account'; }
 
-  if (error) { showToast(`Registration failed: ${error.message}`, 'error'); return; }
-
-  if (data.user && !data.session) {
-    // Supabase "Confirm email" is ON — user must click the link first
-    showToast('Account created! Check your email to confirm, then sign in. 📧', 'success');
-    closeAuth();
+  if (error) {
+    showToast(`Registration failed: ${error.message}`, 'error');
     return;
   }
-  // If email confirmation is OFF, SIGNED_IN fires and bootstraps the session
+
+  if (data.session) {
+    // Email confirmation is OFF — Supabase returned a live session immediately.
+    // onAuthStateChange will fire SIGNED_IN and call closeAuth() + updateNavForUser().
+    // Nothing else needed here.
+    showToast('Account created! Welcome 🌌', 'success');
+  } else {
+    // Email confirmation is ON — no session yet, user must verify first.
+    showToast('Account created! Check your email to confirm, then sign in. 📧', 'success');
+    closeAuth();
+  }
 }
 
-// Sign out
 async function logoutUser() {
   await db.auth.signOut();
-  // SIGNED_OUT event in onAuthStateChange resets state and nav
+  // SIGNED_OUT fires in onAuthStateChange → updateNavForUser()
 }
 
 // ===================== PASSWORD RESET =====================
-// Called by the "Forgot password?" link in the login form
 async function sendPasswordReset(e) {
   if (e) e.preventDefault();
   const email = document.getElementById('authEmail').value.trim();
   if (!email) { showToast('Enter your email address above first', 'error'); return; }
-
   const { error } = await db.auth.resetPasswordForEmail(email, {
     redirectTo: window.location.origin + window.location.pathname,
   });
-  if (error) {
-    showToast(`Reset failed: ${error.message}`, 'error');
-  } else {
-    showToast('Password reset email sent — check your inbox 📧', 'success');
-  }
+  if (error) showToast(`Reset failed: ${error.message}`, 'error');
+  else showToast('Password reset email sent! Check your inbox 📧', 'success');
 }
 
 // ===================== LANGUAGE =====================

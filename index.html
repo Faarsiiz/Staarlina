@@ -8,16 +8,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Raleway:wght@300;400;500;600&family=Space+Mono:wght@400;700&family=Orbitron:wght@400;700;900&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Exo+2:wght@300;400;600;800&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Josefin+Sans:wght@300;400;600;700&family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-  <!-- STAR CANVAS BACKGROUND -->
   <canvas id="starfield"></canvas>
 
-  <!-- NEBULA OVERLAY -->
   <div class="nebula-overlay"></div>
 
-  <!-- ======================== NAVIGATION ======================== -->
   <nav id="navbar">
     <div class="nav-logo">
       <span class="star-icon">★</span>
@@ -51,10 +49,8 @@
     </div>
   </nav>
 
-  <!-- ======================== PAGES WRAPPER ======================== -->
   <main id="main-content">
 
-    <!-- ===== PAGE: HOME ===== -->
     <section id="home" class="page active">
       <div class="hero-content">
         <div class="hero-eyebrow">AI-Powered Astronomy</div>
@@ -100,7 +96,6 @@
       </div>
     </section>
 
-    <!-- ===== PAGE: SKY LAB ===== -->
     <section id="sky-lab" class="page">
       <div class="page-header">
         <h2 class="page-title">Sky Lab <span class="badge-ai">AI</span></h2>
@@ -108,7 +103,6 @@
       </div>
 
       <div class="skylab-layout">
-        <!-- Sky Simulation -->
         <div class="sky-sim-card">
           <div class="sky-sim-header">
             <span>Night Sky Simulator</span>
@@ -141,7 +135,6 @@
           </div>
         </div>
 
-        <!-- Lens Controls -->
         <div class="lens-panel">
           <h3 class="panel-title">Active Lens</h3>
           <div class="lens-grid" id="lensGrid">
@@ -177,7 +170,6 @@
             </div>
           </div>
 
-          <!-- Lens Toggle -->
           <div class="lens-toggle-row">
             <span>Lens Power</span>
             <label class="toggle-switch">
@@ -186,13 +178,11 @@
             </label>
           </div>
 
-          <!-- Intensity Slider -->
           <div class="slider-group" id="intensityGroup" style="display:none;">
             <label>Intensity: <span id="intensityVal">70</span>%</label>
             <input type="range" min="0" max="100" value="70" id="intensitySlider" oninput="updateIntensity(this)">
           </div>
 
-          <!-- Custom Lens Builder -->
           <div class="custom-builder" id="customBuilder" style="display:none;">
             <h4>Custom Lens Builder</h4>
             <label>Blue Light Cut <span id="blueVal">60</span>%</label>
@@ -203,7 +193,6 @@
             <input type="range" min="0" max="100" value="50" id="warmSlider" oninput="updateCustom('warm', this)">
           </div>
 
-          <!-- Compare Panel -->
           <div class="compare-panel" id="comparePanel" style="display:none;">
             <h4>Lens Comparison</h4>
             <div class="compare-selects">
@@ -230,7 +219,6 @@
         </div>
       </div>
 
-      <!-- Snapshot Gallery -->
       <div class="snapshot-gallery" id="snapshotGallery">
         <h3>Your Snapshots</h3>
         <div class="gallery-grid" id="galleryGrid">
@@ -239,7 +227,6 @@
       </div>
     </section>
 
-    <!-- ===== PAGE: AI LENSES ===== -->
     <section id="lenses" class="page">
       <div class="page-header">
         <h2 class="page-title">AI-Powered Lenses</h2>
@@ -283,7 +270,6 @@
         </div>
       </div>
 
-      <!-- Comparison Table -->
       <div class="comparison-table-wrap">
         <h3>Lens Comparison Matrix</h3>
         <table class="comparison-table">
@@ -308,7 +294,6 @@
       </div>
     </section>
 
-    <!-- ===== PAGE: MAP ===== -->
     <section id="map" class="page">
       <div class="page-header">
         <h2 class="page-title">Light Pollution Map</h2>
@@ -334,7 +319,6 @@
             </div>
           </div>
 
-          <!-- Simulated Map Canvas -->
           <canvas id="mapCanvas" width="800" height="500"></canvas>
         </div>
 
@@ -364,7 +348,6 @@
       </div>
     </section>
 
-    <!-- ===== PAGE: EDUCATION ===== -->
     <section id="education" class="page">
       <div class="page-header">
         <h2 class="page-title">Learn About Light Pollution</h2>
@@ -381,10 +364,8 @@
       </div>
 
       <div class="articles-grid" id="articlesGrid">
-        <!-- Dynamically rendered by JS -->
-      </div>
+        </div>
 
-      <!-- Article Modal -->
       <div class="article-modal" id="articleModal">
         <div class="modal-backdrop" onclick="closeArticle()"></div>
         <div class="modal-card">
@@ -394,7 +375,6 @@
       </div>
     </section>
 
-    <!-- ===== PAGE: RESEARCH ===== -->
     <section id="research" class="page">
       <div class="page-header">
         <h2 class="page-title">Research Hub</h2>
@@ -402,7 +382,6 @@
       </div>
 
       <div class="research-layout">
-        <!-- Submit Form -->
         <div class="research-form-card">
           <h3>Submit Your Observation</h3>
           <div class="form-group">
@@ -462,7 +441,6 @@
           <button class="btn-primary" onclick="submitResearch()">Submit Observation</button>
         </div>
 
-        <!-- Community Feed -->
         <div class="research-feed">
           <h3>Community Observations</h3>
           <div class="feed-filters">
@@ -470,15 +448,13 @@
             <button class="feed-filter" onclick="filterFeed('popular', this)">Popular</button>
             <button class="feed-filter" onclick="filterFeed('dark', this)">Darkest Sites</button>
           </div>
-          <div id="feedList"><!-- Rendered by JS --></div>
+          <div id="feedList"></div>
         </div>
       </div>
     </section>
 
-    <!-- ===== PAGE: LUMINOVA ===== -->
     <section id="goggles" class="page luminova-page">
 
-      <!-- Hero Banner -->
       <div class="lum-hero">
         <div class="lum-hero-badge">✦ NEW PRODUCT</div>
         <h2 class="lum-hero-title">Luminova</h2>
@@ -489,7 +465,6 @@
         </div>
       </div>
 
-      <!-- Interactive Product Viewer -->
       <div class="lum-product-viewer">
         <div class="lum-img-panel">
           <div class="lum-img-wrapper" id="lumImgWrapper">
@@ -594,7 +569,6 @@
         </div>
       </div>
 
-      <!-- Interactive Lens Switcher -->
       <div class="lum-lens-section">
         <h3 class="lum-section-title">5 AI-Powered Lens Profiles</h3>
         <p class="lum-section-sub">Switch between profiles with a single button press. Each lens is purpose-built for a different environment.</p>
@@ -620,7 +594,6 @@
         </div>
       </div>
 
-      <!-- Tech Specs -->
       <div id="lum-specs" class="specs-section" style="scroll-margin-top:80px;">
         <h3>Technical Specifications</h3>
         <div class="specs-grid">
@@ -636,7 +609,6 @@
         </div>
       </div>
 
-      <!-- Testimonials -->
       <div class="testimonials">
         <h3>What Astronomers Say</h3>
         <div class="testimonials-row">
@@ -658,7 +630,6 @@
 
   </main>
 
-  <!-- ======================== AUTH MODAL ======================== -->
   <div class="auth-modal" id="authModal">
     <div class="modal-backdrop" onclick="closeAuth()"></div>
     <div class="auth-card">
@@ -672,7 +643,6 @@
         <button class="auth-tab" onclick="switchAuthTab('register', this)">Create Account</button>
       </div>
 
-      <!-- Email/Password Form -->
       <div id="loginForm">
         <div class="form-group">
           <label>Email</label>
@@ -682,7 +652,7 @@
           <label>Password</label>
           <input type="password" id="authPassword" placeholder="••••••••" />
         </div>
-        <button class="btn-primary full" onclick="manualLogin()">Sign In</button>
+        <button class="btn-primary full" style="margin-top: 16px;" onclick="manualLogin()">Sign In</button>
         <a href="#" class="forgot-pw">Forgot password?</a>
       </div>
 
@@ -710,15 +680,13 @@
             <option>Researcher</option>
           </select>
         </div>
-        <button class="btn-primary full" onclick="registerUser()">Create Account</button>
+        <button class="btn-primary full" style="margin-top: 16px;" onclick="registerUser()">Create Account</button>
       </div>
     </div>
   </div>
 
-  <!-- ======================== TOAST NOTIFICATION ======================== -->
   <div id="toast" class="toast"></div>
 
-  <!-- ======================== FOOTER ======================== -->
   <footer>
     <div class="footer-content">
       <div class="footer-brand">
@@ -749,7 +717,6 @@
     </div>
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 </body>
 </html>

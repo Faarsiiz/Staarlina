@@ -5,6 +5,12 @@
 
 'use strict';
 
+// ===================== SUPABASE =====================
+// ⚠️ Replace these with your actual Supabase project URL and anon key
+const SUPABASE_URL  = 'https://lngtgjsxpsmqbaxudmmw.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_-rWV5BTBjx8eXL4vuCFPmg_PyQt5wBl';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
 // ===================== STATE =====================
 const state = {
   currentPage: 'home',
@@ -509,14 +515,24 @@ function runComparison() {
 function requestLocation() {
   if (!navigator.geolocation) { showToast('Geolocation not supported', 'error'); return; }
   navigator.geolocation.getCurrentPosition(
-    pos => {
-      state.userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      const lat = pos.coords.latitude.toFixed(3);
-      const lng = pos.coords.longitude.toFixed(3);
-      document.getElementById('hudLocation').textContent = `📍 ${lat}, ${lng}`;
-      showToast(`Location acquired: ${lat}, ${lng}`, 'success');
+    async pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      state.userLocation = { lat, lng };
+      document.getElementById('hudLocation').textContent = `📍 ${lat.toFixed(3)}, ${lng.toFixed(3)}`;
+      showToast(`Location acquired: ${lat.toFixed(3)}, ${lng.toFixed(3)}`, 'success');
+
+      // Persist to Supabase if signed in
+      if (state.user) {
+        await supabase.from('user_locations').upsert({
+          user_id:   state.user.id,
+          latitude:  lat,
+          longitude: lng,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+      }
     },
-    err => showToast('Location access denied', 'error')
+    () => showToast('Location access denied', 'error')
   );
 }
 
@@ -767,28 +783,42 @@ function previewImage(input) {
   }
 }
 
-function submitResearch() {
+async function submitResearch() {
   const title    = document.getElementById('resTitle').value.trim();
   const location = document.getElementById('resLocation').value.trim();
   const notes    = document.getElementById('resNotes').value.trim();
   if (!title || !location) { showToast('Please fill in title and location', 'error'); return; }
   if (!state.user) { showToast('Please sign in to submit research', 'error'); openAuth(); return; }
 
-  const newEntry = {
-    id: sampleFeed.length + 1,
+  const bortle   = parseInt(document.getElementById('resBortle').value) || 5;
+  const lens_used = document.getElementById('resLens').value;
+
+  const { error } = await supabase.from('observations').insert({
+    user_id:     state.user.id,
+    title,
+    location,
+    bortle_scale: bortle,
+    lens_used,
+    notes:       notes || 'Observation submitted via Staarlina.',
+  });
+
+  if (error) { showToast('Submission failed: ' + error.message, 'error'); return; }
+
+  // Also add to local feed for immediate display
+  sampleFeed.unshift({
+    id: Date.now(),
     title, location,
-    bortle: parseInt(document.getElementById('resBortle').value) || 5,
-    lens: document.getElementById('resLens').value,
+    bortle, lens: lens_used,
     date: 'Just now',
-    user: `@${state.user.name.replace(/\s/g,'_').toLowerCase()}`,
+    user: `@${state.user.name.replace(/\s/g, '_').toLowerCase()}`,
     notes: notes || 'Observation submitted via Staarlina.',
     upvotes: 0,
-  };
-  sampleFeed.unshift(newEntry);
+  });
+
   showToast('Observation submitted! Thank you for contributing.', 'success');
-  document.getElementById('resTitle').value = '';
+  document.getElementById('resTitle').value    = '';
   document.getElementById('resLocation').value = '';
-  document.getElementById('resNotes').value = '';
+  document.getElementById('resNotes').value    = '';
   renderFeed('recent');
 }
 
@@ -809,29 +839,80 @@ document.getElementById('loginBtn').addEventListener('click', () => {
 function switchAuthTab(tab, btn) {
   document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('loginForm').style.display    = tab === 'login' ? 'block' : 'none';
+  document.getElementById('loginForm').style.display    = tab === 'login'    ? 'block' : 'none';
   document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
 }
 
-function manualLogin() {
+async function manualLogin() {
   const email = document.getElementById('authEmail').value.trim();
   const pass  = document.getElementById('authPassword').value;
   if (!email || !pass) { showToast('Please fill in all fields', 'error'); return; }
-  const name = email.split('@')[0];
-  loginSuccess({ name, email, provider: 'email' });
+
+  const loginBtn = document.querySelector('#loginForm .btn-primary');
+  loginBtn.textContent = 'Signing in…';
+  loginBtn.disabled = true;
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+
+  loginBtn.textContent = 'Sign In';
+  loginBtn.disabled = false;
+
+  if (error) { showToast(error.message, 'error'); return; }
+
+  // Fetch profile from DB
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('display_name, role')
+    .eq('id', data.user.id)
+    .single();
+
+  loginSuccess({
+    id:    data.user.id,
+    name:  profile?.display_name ?? email.split('@')[0],
+    email: data.user.email,
+    role:  profile?.role ?? 'Amateur Astronomer',
+  });
 }
 
-function registerUser() {
+async function registerUser() {
   const name  = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim();
   const pass  = document.getElementById('regPassword').value;
-  if (!name || !email || !pass) { showToast('Please fill in all fields', 'error'); return; }
-  loginSuccess({ name, email, provider: 'email', role: document.getElementById('regRole').value });
-}
+  const role  = document.getElementById('regRole').value;
 
-function socialLogin(provider) {
-  const names = { Google:'Sky Explorer', Apple:'Star Watcher', Yahoo:'Cosmos Gazer' };
-  loginSuccess({ name: names[provider], email:`user@${provider.toLowerCase()}.com`, provider });
+  if (!name || !email || !pass) { showToast('Please fill in all fields', 'error'); return; }
+  if (pass.length < 6) { showToast('Password must be at least 6 characters', 'error'); return; }
+
+  const regBtn = document.querySelector('#registerForm .btn-primary');
+  regBtn.textContent = 'Creating account…';
+  regBtn.disabled = true;
+
+  const { data, error } = await supabase.auth.signUp({ email, password: pass });
+
+  if (error) {
+    regBtn.textContent = 'Create Account';
+    regBtn.disabled = false;
+    showToast(error.message, 'error');
+    return;
+  }
+
+  // Insert profile row
+  const { error: profileError } = await supabase.from('profiles').insert({
+    id:           data.user.id,
+    display_name: name,
+    email:        email,
+    role:         role,
+  });
+
+  regBtn.textContent = 'Create Account';
+  regBtn.disabled = false;
+
+  if (profileError) {
+    showToast('Account created but profile save failed: ' + profileError.message, 'error');
+    return;
+  }
+
+  loginSuccess({ id: data.user.id, name, email, role });
 }
 
 function loginSuccess(user) {
@@ -841,11 +922,40 @@ function loginSuccess(user) {
   showToast(`Welcome, ${user.name}!`, 'success');
 }
 
-function logoutUser() {
+async function logoutUser() {
+  await supabase.auth.signOut();
   state.user = null;
   document.getElementById('loginBtn').textContent = 'Sign In';
   showToast('Signed out');
 }
+
+// Restore session on page load
+async function restoreSession() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return;
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('display_name, role')
+    .eq('id', session.user.id)
+    .single();
+
+  state.user = {
+    id:    session.user.id,
+    name:  profile?.display_name ?? session.user.email.split('@')[0],
+    email: session.user.email,
+    role:  profile?.role ?? 'Amateur Astronomer',
+  };
+  document.getElementById('loginBtn').textContent = `👤 ${state.user.name.split(' ')[0]}`;
+}
+
+// Listen for auth state changes (e.g. token refresh)
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_OUT') {
+    state.user = null;
+    document.getElementById('loginBtn').textContent = 'Sign In';
+  }
+});
 
 // ===================== LANGUAGE =====================
 const translations = {
@@ -917,6 +1027,7 @@ if (dropZone) {
 
 // ===================== INIT =====================
 window.addEventListener('DOMContentLoaded', () => {
+  restoreSession();
   navigateTo('home');
   // Set datetime default
   const dtInput = document.getElementById('resDatetime');

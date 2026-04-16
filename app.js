@@ -5,11 +5,11 @@
 
 'use strict';
 
-// ===================== SUPABASE =====================
-// ⚠️ Replace these with your actual Supabase project URL and anon key
-const SUPABASE_URL  = 'https://lngtgjsxpsmqbaxudmmw.supabase.co';
-const SUPABASE_ANON = 'sb_publishable_-rWV5BTBjx8eXL4vuCFPmg_PyQt5wBl';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+// ===================== SUPABASE SETUP =====================
+// REMEMBER TO REPLACE THESE WITH YOUR ACTUAL SUPABASE URL AND PUBLIC ANON KEY
+const SUPABASE_URL = 'https://lngtgjsxpsmqbaxudmmw.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_-rWV5BTBjx8eXL4vuCFPmg_PyQt5wBl';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ===================== STATE =====================
 const state = {
@@ -18,14 +18,15 @@ const state = {
   lensActive: false,
   cameraActive: false,
   cameraStream: null,
-  user: null,
+  user: null, // holds id, name, email from supabase
   snapshots: [],
   customSettings: { blue: 60, contrast: 40, warm: 50 },
   compareMode: false,
   mapInitialised: false,
   userLocation: null,
-  researchFeed: [],
 };
+
+let currentFeed = []; // Replaces the old sampleFeed
 
 // ===================== NAVIGATION =====================
 function navigateTo(pageId) {
@@ -39,7 +40,7 @@ function navigateTo(pageId) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
   if (pageId === 'sky-lab') initSkyCanvas();
   if (pageId === 'education') renderArticles('all');
-  if (pageId === 'research') renderFeed('recent');
+  if (pageId === 'research') fetchObservations('recent');
   if (pageId === 'map') initMapCanvas();
   updateHudTime();
 }
@@ -170,7 +171,6 @@ function createSkyStars() {
       type: Math.random() > 0.95 ? 'bright' : 'normal',
     });
   }
-  // Add a few named celestial objects
   const celestials = [
     { x: w*0.2, y: h*0.25, label: 'Polaris',  r: 3.5, color: '#fffae0' },
     { x: w*0.6, y: h*0.3,  label: 'Sirius',   r: 4,   color: '#e0eeff' },
@@ -186,19 +186,13 @@ function drawSkyFrame() {
   const w = skyCanvas.width, h = skyCanvas.height;
   const lens = state.lensActive ? state.currentLens : 'none';
 
-  // Sky gradient based on lens
+  // Sky gradient
   const bgGrad = skyCtx.createLinearGradient(0, 0, 0, h);
-  if (lens === 'city') {
-    bgGrad.addColorStop(0, '#120608'); bgGrad.addColorStop(1, '#1a0a0a');
-  } else if (lens === 'brightness') {
-    bgGrad.addColorStop(0, '#040210'); bgGrad.addColorStop(1, '#050315');
-  } else if (lens === 'astronomy') {
-    bgGrad.addColorStop(0, '#000005'); bgGrad.addColorStop(1, '#020010');
-  } else {
-    bgGrad.addColorStop(0, '#01000a'); bgGrad.addColorStop(1, '#080420');
-  }
-  skyCtx.fillStyle = bgGrad;
-  skyCtx.fillRect(0, 0, w, h);
+  if (lens === 'city') { bgGrad.addColorStop(0, '#120608'); bgGrad.addColorStop(1, '#1a0a0a'); } 
+  else if (lens === 'brightness') { bgGrad.addColorStop(0, '#040210'); bgGrad.addColorStop(1, '#050315'); } 
+  else if (lens === 'astronomy') { bgGrad.addColorStop(0, '#000005'); bgGrad.addColorStop(1, '#020010'); } 
+  else { bgGrad.addColorStop(0, '#01000a'); bgGrad.addColorStop(1, '#080420'); }
+  skyCtx.fillStyle = bgGrad; skyCtx.fillRect(0, 0, w, h);
 
   // Milky Way band
   const milkyGrad = skyCtx.createLinearGradient(w*0.1, 0, w*0.9, h);
@@ -206,74 +200,52 @@ function drawSkyFrame() {
   milkyGrad.addColorStop(0.3, lens === 'astronomy' ? 'rgba(140,100,255,0.12)' : 'rgba(100,60,180,0.05)');
   milkyGrad.addColorStop(0.7, lens === 'astronomy' ? 'rgba(180,120,255,0.1)' : 'rgba(80,40,140,0.04)');
   milkyGrad.addColorStop(1, 'transparent');
-  skyCtx.fillStyle = milkyGrad;
-  skyCtx.fillRect(0, 0, w, h);
+  skyCtx.fillStyle = milkyGrad; skyCtx.fillRect(0, 0, w, h);
 
   // Simulate glow/pollution in non-filtered view
   if (!state.lensActive) {
     const pollGrad = skyCtx.createRadialGradient(w/2, h, 0, w/2, h, h*0.8);
     pollGrad.addColorStop(0, 'rgba(100,140,255,0.18)');
     pollGrad.addColorStop(1, 'transparent');
-    skyCtx.fillStyle = pollGrad;
-    skyCtx.fillRect(0, 0, w, h);
+    skyCtx.fillStyle = pollGrad; skyCtx.fillRect(0, 0, w, h);
   }
 
   // Stars
   skyStars.forEach(s => {
     if (s.bright) {
-      // Celestial objects
       if (s.isNebula) {
         const ng = skyCtx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 6);
         const vis = state.lensActive && lens === 'astronomy' ? 0.8 : 0.3;
-        ng.addColorStop(0, s.color.replace('0.5', `${vis}`));
-        ng.addColorStop(1, 'transparent');
-        skyCtx.fillStyle = ng;
-        skyCtx.beginPath();
-        skyCtx.arc(s.x, s.y, s.r * 6, 0, Math.PI * 2);
-        skyCtx.fill();
+        ng.addColorStop(0, s.color.replace('0.5', `${vis}`)); ng.addColorStop(1, 'transparent');
+        skyCtx.fillStyle = ng; skyCtx.beginPath(); skyCtx.arc(s.x, s.y, s.r * 6, 0, Math.PI * 2); skyCtx.fill();
       }
-      // Halo
       const halo = skyCtx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 3);
-      halo.addColorStop(0, s.color || '#fff');
-      halo.addColorStop(1, 'transparent');
-      skyCtx.fillStyle = halo;
-      skyCtx.beginPath();
-      skyCtx.arc(s.x, s.y, s.r * 3, 0, Math.PI * 2);
-      skyCtx.fill();
-      // Core
-      skyCtx.beginPath();
-      skyCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-      skyCtx.fillStyle = s.color || '#fff';
-      skyCtx.fill();
-      // Label
+      halo.addColorStop(0, s.color || '#fff'); halo.addColorStop(1, 'transparent');
+      skyCtx.fillStyle = halo; skyCtx.beginPath(); skyCtx.arc(s.x, s.y, s.r * 3, 0, Math.PI * 2); skyCtx.fill();
+      
+      skyCtx.beginPath(); skyCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      skyCtx.fillStyle = s.color || '#fff'; skyCtx.fill();
+      
       const labelVis = state.lensActive ? 1 : 0.4;
       skyCtx.fillStyle = `rgba(180,160,255,${labelVis})`;
       skyCtx.font = '10px Space Mono, monospace';
       skyCtx.fillText(s.label, s.x + s.r + 5, s.y + 4);
       return;
     }
-    // Twinkle
     s.brightness += s.twinkle * s.dir;
     if (s.brightness >= 1 || s.brightness <= 0.1) s.dir *= -1;
 
-    // Lens adjustments
-    let alpha = s.brightness;
-    let starR = s.r;
+    let alpha = s.brightness; let starR = s.r;
     if (lens === 'astronomy' && state.lensActive) { alpha = Math.min(1, alpha * 1.5); starR *= 1.2; }
     if (lens === 'city'      && state.lensActive) { alpha *= 1.1; }
     if (lens === 'antiglare' && state.lensActive) { alpha = Math.min(1, alpha * 1.3); }
     if (lens === 'brightness'&& state.lensActive) { alpha *= 0.95; }
-    if (!state.lensActive) { alpha *= 0.5; starR *= 0.85; } // pollution effect
+    if (!state.lensActive) { alpha *= 0.5; starR *= 0.85; }
 
-    skyCtx.beginPath();
-    skyCtx.arc(s.x, s.y, starR, 0, Math.PI * 2);
-    skyCtx.fillStyle = '#fff';
-    skyCtx.globalAlpha = alpha;
-    skyCtx.fill();
-    skyCtx.globalAlpha = 1;
+    skyCtx.beginPath(); skyCtx.arc(s.x, s.y, starR, 0, Math.PI * 2);
+    skyCtx.fillStyle = '#fff'; skyCtx.globalAlpha = alpha; skyCtx.fill(); skyCtx.globalAlpha = 1;
   });
 
-  // Lens-specific colour overlays
   applyLensOverlayToCanvas(skyCtx, w, h, lens);
   skyAnimId = requestAnimationFrame(drawSkyFrame);
 }
@@ -281,22 +253,13 @@ function drawSkyFrame() {
 function applyLensOverlayToCanvas(ctx, w, h, lens) {
   if (!state.lensActive) return;
   ctx.save();
-  if (lens === 'city') {
-    ctx.fillStyle = 'rgba(180, 100, 10, 0.08)';
-    ctx.fillRect(0, 0, w, h);
-  } else if (lens === 'astronomy') {
-    ctx.fillStyle = 'rgba(20, 0, 60, 0.1)';
-    ctx.fillRect(0, 0, w, h);
-  } else if (lens === 'antiglare') {
-    ctx.fillStyle = 'rgba(0, 20, 40, 0.07)';
-    ctx.fillRect(0, 0, w, h);
-  } else if (lens === 'brightness') {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-    ctx.fillRect(0, 0, w, h);
-  } else if (lens === 'custom') {
+  if (lens === 'city') { ctx.fillStyle = 'rgba(180, 100, 10, 0.08)'; ctx.fillRect(0, 0, w, h); } 
+  else if (lens === 'astronomy') { ctx.fillStyle = 'rgba(20, 0, 60, 0.1)'; ctx.fillRect(0, 0, w, h); } 
+  else if (lens === 'antiglare') { ctx.fillStyle = 'rgba(0, 20, 40, 0.07)'; ctx.fillRect(0, 0, w, h); } 
+  else if (lens === 'brightness') { ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; ctx.fillRect(0, 0, w, h); } 
+  else if (lens === 'custom') {
     const { blue, warm } = state.customSettings;
-    ctx.fillStyle = `rgba(${warm*1.5}, ${60}, ${255 - blue*2}, ${blue * 0.001})`;
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = `rgba(${warm*1.5}, ${60}, ${255 - blue*2}, ${blue * 0.001})`; ctx.fillRect(0, 0, w, h);
   }
   ctx.restore();
 }
@@ -314,7 +277,6 @@ function selectLens(lensId, el) {
     document.getElementById('customBuilder').style.flexDirection = 'column';
   }
 
-  // Apply CSS filter to lens overlay
   applyLensOverlay(lensId);
   if (state.cameraActive) applyFilterToCamera();
 }
@@ -356,16 +318,8 @@ function applyLensOverlay(lensId) {
   if (cfg) { overlay.style.background = cfg.bg; overlay.style.mixBlendMode = cfg.blend; }
 }
 
-function updateIntensity(el) {
-  document.getElementById('intensityVal').textContent = el.value;
-  applyLensOverlay(state.currentLens);
-}
-
-function updateCustom(type, el) {
-  state.customSettings[type] = parseInt(el.value);
-  document.getElementById(`${type}Val`).textContent = el.value;
-  applyLensOverlay('custom');
-}
+function updateIntensity(el) { document.getElementById('intensityVal').textContent = el.value; applyLensOverlay(state.currentLens); }
+function updateCustom(type, el) { state.customSettings[type] = parseInt(el.value); document.getElementById(`${type}Val`).textContent = el.value; applyLensOverlay('custom'); }
 
 // ===================== CAMERA =====================
 function toggleSimMode() {
@@ -380,31 +334,24 @@ function toggleSimMode() {
 }
 
 async function startCamera() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    showToast('Camera not supported in this browser', 'error'); return;
-  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showToast('Camera not supported in this browser', 'error'); return; }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    state.cameraStream = stream;
-    state.cameraActive = true;
+    state.cameraStream = stream; state.cameraActive = true;
     const video = document.getElementById('cameraFeed');
-    video.srcObject = stream;
-    video.style.display = 'block';
+    video.srcObject = stream; video.style.display = 'block';
     document.getElementById('skyCanvas').style.display = 'none';
     document.getElementById('cameraBtn').classList.add('active');
     document.getElementById('simModeBtn').classList.remove('active');
     document.getElementById('hudLocation').textContent = '📍 Camera: Live';
     showToast('Camera activated — AI filter applied');
     applyFilterToCamera();
-  } catch (err) {
-    showToast(`Camera error: ${err.message}`, 'error');
-  }
+  } catch (err) { showToast(`Camera error: ${err.message}`, 'error'); }
 }
 
 function stopCamera() {
   if (state.cameraStream) { state.cameraStream.getTracks().forEach(t => t.stop()); state.cameraStream = null; }
-  state.cameraActive = false;
-  document.getElementById('cameraFeed').style.display = 'none';
+  state.cameraActive = false; document.getElementById('cameraFeed').style.display = 'none';
 }
 
 function applyFilterToCamera() {
@@ -434,8 +381,7 @@ function captureSnapshot() {
   if (state.cameraActive) {
     const video = document.getElementById('cameraFeed');
     const tmpCanvas = document.createElement('canvas');
-    tmpCanvas.width = video.videoWidth || 640;
-    tmpCanvas.height = video.videoHeight || 360;
+    tmpCanvas.width = video.videoWidth || 640; tmpCanvas.height = video.videoHeight || 360;
     const tmpCtx = tmpCanvas.getContext('2d');
     tmpCtx.filter = video.style.filter || 'none';
     tmpCtx.drawImage(video, 0, 0);
@@ -452,10 +398,7 @@ function captureSnapshot() {
 function renderGallery() {
   const grid = document.getElementById('galleryGrid');
   if (!grid) return;
-  if (state.snapshots.length === 0) {
-    grid.innerHTML = '<div class="gallery-empty">Take a snapshot to see it here.</div>';
-    return;
-  }
+  if (state.snapshots.length === 0) { grid.innerHTML = '<div class="gallery-empty">Take a snapshot to see it here.</div>'; return; }
   grid.innerHTML = state.snapshots.map((s, i) => `
     <div class="gallery-item" onclick="viewSnapshot(${i})">
       <img src="${s.dataURL}" alt="Snapshot ${i+1}" />
@@ -490,49 +433,41 @@ function toggleLensCompare() {
 }
 
 function runComparison() {
-  const a = document.getElementById('compareA').value;
-  const b = document.getElementById('compareB').value;
-  const aName = getLensName(a) || 'No Lens';
-  const bName = getLensName(b) || 'No Lens';
+  const a = document.getElementById('compareA').value; const b = document.getElementById('compareB').value;
+  const aName = getLensName(a) || 'No Lens'; const bName = getLensName(b) || 'No Lens';
   showToast(`Comparing ${aName} vs ${bName}`);
-
-  // Visual split on canvas — left half lens A, right half lens B
   if (skyCtx) {
     const w = skyCanvas.width, h = skyCanvas.height;
-    // Draw comparison overlay
     skyCtx.save();
-    skyCtx.fillStyle = 'rgba(255,255,255,0.08)';
-    skyCtx.fillRect(w/2, 0, 1, h);
-    skyCtx.fillStyle = 'rgba(200,160,255,0.8)';
-    skyCtx.font = '11px Space Mono, monospace';
-    skyCtx.fillText(aName, 12, h - 12);
-    skyCtx.fillText(bName, w/2 + 8, h - 12);
+    skyCtx.fillStyle = 'rgba(255,255,255,0.08)'; skyCtx.fillRect(w/2, 0, 1, h);
+    skyCtx.fillStyle = 'rgba(200,160,255,0.8)'; skyCtx.font = '11px Space Mono, monospace';
+    skyCtx.fillText(aName, 12, h - 12); skyCtx.fillText(bName, w/2 + 8, h - 12);
     skyCtx.restore();
   }
 }
 
-// ===================== LOCATION =====================
+// ===================== SUPABASE LOCATION SYNC =====================
+async function syncLocationToSupabase(lat, lng) {
+  if (state.user) {
+    const { error } = await supabase.from('user_locations').upsert(
+      { user_id: state.user.id, latitude: lat, longitude: lng, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    );
+    if (error) console.error("Error syncing location", error);
+  }
+}
+
 function requestLocation() {
   if (!navigator.geolocation) { showToast('Geolocation not supported', 'error'); return; }
   navigator.geolocation.getCurrentPosition(
-    async pos => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
-      state.userLocation = { lat, lng };
-      document.getElementById('hudLocation').textContent = `📍 ${lat.toFixed(3)}, ${lng.toFixed(3)}`;
-      showToast(`Location acquired: ${lat.toFixed(3)}, ${lng.toFixed(3)}`, 'success');
-
-      // Persist to Supabase if signed in
-      if (state.user) {
-        await supabase.from('user_locations').upsert({
-          user_id:   state.user.id,
-          latitude:  lat,
-          longitude: lng,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
-      }
+    pos => {
+      state.userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      const lat = pos.coords.latitude.toFixed(3); const lng = pos.coords.longitude.toFixed(3);
+      document.getElementById('hudLocation').textContent = `📍 ${lat}, ${lng}`;
+      syncLocationToSupabase(pos.coords.latitude, pos.coords.longitude);
+      showToast(`Location acquired: ${lat}, ${lng}`, 'success');
     },
-    () => showToast('Location access denied', 'error')
+    err => showToast('Location access denied', 'error')
   );
 }
 
@@ -540,9 +475,9 @@ function autofillLocation() {
   if (!navigator.geolocation) { showToast('Geolocation not supported', 'error'); return; }
   navigator.geolocation.getCurrentPosition(
     pos => {
-      const lat = pos.coords.latitude.toFixed(4);
-      const lng = pos.coords.longitude.toFixed(4);
+      const lat = pos.coords.latitude.toFixed(4); const lng = pos.coords.longitude.toFixed(4);
       document.getElementById('resLocation').value = `${lat}, ${lng}`;
+      syncLocationToSupabase(pos.coords.latitude, pos.coords.longitude);
       showToast('Location filled', 'success');
     },
     () => showToast('Could not get location', 'error')
@@ -556,42 +491,29 @@ function updateHudTime() {
   const now = new Date();
   el.textContent = `🕐 ${now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}`;
 }
-setInterval(updateHudTime, 30000);
-updateHudTime();
+setInterval(updateHudTime, 30000); updateHudTime();
 
 // ===================== MAP =====================
-function initMap() {
-  document.getElementById('mapPlaceholder').classList.add('hidden');
-  state.mapInitialised = true;
-  requestLocation();
-  initMapCanvas();
-}
+function initMap() { document.getElementById('mapPlaceholder').classList.add('hidden'); state.mapInitialised = true; requestLocation(); initMapCanvas(); }
 
 function initMapCanvas() {
   const canvas = document.getElementById('mapCanvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  const W = canvas.width  = canvas.offsetWidth  || 800;
-  const H = canvas.height = canvas.offsetHeight || 500;
+  const W = canvas.width  = canvas.offsetWidth  || 800; const H = canvas.height = canvas.offsetHeight || 500;
 
-  // Background — ocean-like dark
   const bg = ctx.createLinearGradient(0, 0, W, H);
   bg.addColorStop(0, '#040214'); bg.addColorStop(1, '#0a0430');
   ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
-  // Grid lines
   ctx.strokeStyle = 'rgba(80,40,140,0.2)'; ctx.lineWidth = 1;
   for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
   for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
 
-  // Simulated continents (rough shapes)
   const continents = [
-    { x: W*0.15, y: H*0.25, rX: 80, rY: 60, color: 'rgba(40,20,80,0.9)' },
-    { x: W*0.38, y: H*0.3,  rX: 130, rY: 80, color: 'rgba(40,20,80,0.9)' },
-    { x: W*0.62, y: H*0.35, rX: 110, rY: 90, color: 'rgba(40,20,80,0.9)' },
-    { x: W*0.75, y: H*0.5,  rX: 70,  rY: 55, color: 'rgba(40,20,80,0.9)' },
-    { x: W*0.5,  y: H*0.65, rX: 50,  rY: 40, color: 'rgba(40,20,80,0.9)' },
-    { x: W*0.22, y: H*0.6,  rX: 90,  rY: 60, color: 'rgba(40,20,80,0.9)' },
+    { x: W*0.15, y: H*0.25, rX: 80, rY: 60, color: 'rgba(40,20,80,0.9)' }, { x: W*0.38, y: H*0.3,  rX: 130, rY: 80, color: 'rgba(40,20,80,0.9)' },
+    { x: W*0.62, y: H*0.35, rX: 110, rY: 90, color: 'rgba(40,20,80,0.9)' }, { x: W*0.75, y: H*0.5,  rX: 70,  rY: 55, color: 'rgba(40,20,80,0.9)' },
+    { x: W*0.5,  y: H*0.65, rX: 50,  rY: 40, color: 'rgba(40,20,80,0.9)' }, { x: W*0.22, y: H*0.6,  rX: 90,  rY: 60, color: 'rgba(40,20,80,0.9)' },
   ];
   continents.forEach(c => {
     ctx.beginPath(); ctx.ellipse(c.x, c.y, c.rX, c.rY, 0, 0, Math.PI*2);
@@ -599,42 +521,28 @@ function initMapCanvas() {
     ctx.strokeStyle = 'rgba(100,60,180,0.3)'; ctx.lineWidth = 1; ctx.stroke();
   });
 
-  // Pollution hotspots (radial gradients simulating city glow)
   const hotspots = [
-    { x:W*0.41, y:H*0.25, r:45, bortle:9, label:'London' },
-    { x:W*0.22, y:H*0.32, r:55, bortle:9, label:'New York' },
-    { x:W*0.71, y:H*0.32, r:50, bortle:9, label:'Tokyo' },
-    { x:W*0.65, y:H*0.28, r:40, bortle:8, label:'Beijing' },
-    { x:W*0.18, y:H*0.38, r:35, bortle:8, label:'L.A.' },
-    { x:W*0.43, y:H*0.29, r:30, bortle:7, label:'Paris' },
-    { x:W*0.38, y:H*0.62, r:30, bortle:5, label:'São Paulo' },
-    { x:W*0.12, y:H*0.2,  r:18, bortle:2, label:'Cherry Springs' },
-    { x:W*0.6,  y:H*0.72, r:12, bortle:1, label:'Atacama' },
-    { x:W*0.73, y:H*0.65, r:14, bortle:1, label:'Mauna Kea' },
+    { x:W*0.41, y:H*0.25, r:45, bortle:9, label:'London' }, { x:W*0.22, y:H*0.32, r:55, bortle:9, label:'New York' },
+    { x:W*0.71, y:H*0.32, r:50, bortle:9, label:'Tokyo' }, { x:W*0.65, y:H*0.28, r:40, bortle:8, label:'Beijing' },
+    { x:W*0.18, y:H*0.38, r:35, bortle:8, label:'L.A.' }, { x:W*0.43, y:H*0.29, r:30, bortle:7, label:'Paris' },
+    { x:W*0.38, y:H*0.62, r:30, bortle:5, label:'São Paulo' }, { x:W*0.12, y:H*0.2,  r:18, bortle:2, label:'Cherry Springs' },
+    { x:W*0.6,  y:H*0.72, r:12, bortle:1, label:'Atacama' }, { x:W*0.73, y:H*0.65, r:14, bortle:1, label:'Mauna Kea' },
   ];
 
   hotspots.forEach(h => {
     const col = bortleColor(h.bortle);
     const grad = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, h.r);
     grad.addColorStop(0, col.replace(')', ',0.9)').replace('rgb','rgba'));
-    grad.addColorStop(0.5, col.replace(')', ',0.4)').replace('rgb','rgba'));
-    grad.addColorStop(1, 'transparent');
+    grad.addColorStop(0.5, col.replace(')', ',0.4)').replace('rgb','rgba')); grad.addColorStop(1, 'transparent');
     ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(h.x, h.y, h.r, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = 'rgba(220,200,255,0.8)';
-    ctx.font = '9px Space Mono, monospace';
-    ctx.fillText(h.label, h.x - 16, h.y + h.r + 12);
+    ctx.fillStyle = 'rgba(220,200,255,0.8)'; ctx.font = '9px Space Mono, monospace'; ctx.fillText(h.label, h.x - 16, h.y + h.r + 12);
   });
 
-  // Click handler
   canvas.onclick = (e) => {
     const rect = canvas.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) * (W / rect.width);
-    const my = (e.clientY - rect.top)  * (H / rect.height);
+    const mx = (e.clientX - rect.left) * (W / rect.width); const my = (e.clientY - rect.top)  * (H / rect.height);
     let nearest = null, minDist = Infinity;
-    hotspots.forEach(h => {
-      const d = Math.hypot(mx-h.x, my-h.y);
-      if (d < minDist) { minDist = d; nearest = h; }
-    });
+    hotspots.forEach(h => { const d = Math.hypot(mx-h.x, my-h.y); if (d < minDist) { minDist = d; nearest = h; } });
     if (nearest) showBortleCard(nearest);
   };
 }
@@ -646,14 +554,10 @@ function bortleColor(b) {
 
 function showBortleCard(site) {
   const descs = {
-    1: 'Pristine dark sky. Zodiacal light, gegenschein, and Milky Way structure visible.',
-    2: 'Truly dark sky. Airglow faintly visible on horizon.',
-    3: 'Rural sky. Some light pollution near horizon.',
-    4: 'Rural/Suburban. Milky Way still impressive, some loss of detail.',
-    5: 'Suburban sky. Milky Way washed out near horizon.',
-    6: 'Bright suburban. Only hints of Milky Way visible.',
-    7: 'Suburban/Urban. Background sky is light grey.',
-    8: 'City sky. Sky is orange/grey. Only 5th magnitude stars visible.',
+    1: 'Pristine dark sky. Zodiacal light, gegenschein, and Milky Way structure visible.', 2: 'Truly dark sky. Airglow faintly visible on horizon.',
+    3: 'Rural sky. Some light pollution near horizon.', 4: 'Rural/Suburban. Milky Way still impressive, some loss of detail.',
+    5: 'Suburban sky. Milky Way washed out near horizon.', 6: 'Bright suburban. Only hints of Milky Way visible.',
+    7: 'Suburban/Urban. Background sky is light grey.', 8: 'City sky. Sky is orange/grey. Only 5th magnitude stars visible.',
     9: 'Inner city. Sky is brilliant grey or orange. Only brightest stars visible.',
   };
   const labels = {1:'Pristine Dark',2:'Truly Dark',3:'Rural',4:'Rural/Suburban',5:'Suburban',6:'Bright Suburban',7:'Suburban/Urban',8:'City',9:'Inner City'};
@@ -662,35 +566,25 @@ function showBortleCard(site) {
   document.getElementById('bortleDesc').textContent  = descs[site.bortle];
 }
 
-function showDarkSite(el) {
-  const bortle = parseInt(el.dataset.bortle);
-  const name   = el.dataset.name;
-  showBortleCard({ bortle, label: name });
-  showToast(`Showing: ${name}`);
-}
+function showDarkSite(el) { const bortle = parseInt(el.dataset.bortle); const name = el.dataset.name; showBortleCard({ bortle, label: name }); showToast(`Showing: ${name}`); }
 
 function searchLocation() {
   const q = document.getElementById('mapSearch').value;
   if (!q) return;
   showToast(`Searching for "${q}"...`);
-  // Simulate a result
-  setTimeout(() => {
-    const fakeData = { bortle: Math.floor(Math.random()*8)+1, label: q };
-    showBortleCard(fakeData);
-    showToast(`Results for "${q}" loaded`, 'success');
-  }, 800);
+  setTimeout(() => { showBortleCard({ bortle: Math.floor(Math.random()*8)+1, label: q }); showToast(`Results for "${q}" loaded`, 'success'); }, 800);
 }
 
 // ===================== EDUCATION ARTICLES =====================
 const articles = [
-  { id:1, cat:'basics', icon:'🌃', title:'What is Light Pollution?', excerpt:'An introduction to the brightening of the night sky caused by artificial light sources.', content:`<h2>What is Light Pollution?</h2><p>Light pollution refers to the excessive, misdirected, or obtrusive artificial light produced by human activity. It is a significant environmental issue that affects billions of people worldwide and disrupts natural ecosystems.</p><h3>Types of Light Pollution</h3><p>There are four main types: skyglow (the brightening of the night sky over populated areas), light trespass (light falling where it is not needed), glare (excessive brightness that causes visual discomfort), and clutter (bright, confusing, and excessive groupings of light sources).</p><h3>The Bortle Scale</h3><p>The Bortle Dark-Sky Scale is a nine-level numeric scale that measures the night sky's brightness at any given location. It was developed by John E. Bortle in 2001 to help amateur astronomers evaluate the darkness of an observing site.</p>`, date:'Mar 2025', readTime:'5 min' },
-  { id:2, cat:'science', icon:'🔵', title:'Blue Light & The Night Sky', excerpt:'Why blue-light wavelengths from LEDs are the most damaging contributors to light pollution.', content:`<h2>Blue Light & The Night Sky</h2><p>Modern LED lighting, while energy-efficient, emits a disproportionate amount of blue-wavelength light (450–490nm). This blue light scatters more easily in the atmosphere than longer wavelengths, significantly increasing skyglow.</p><h3>The Rayleigh Scattering Effect</h3><p>Rayleigh scattering causes shorter wavelengths (blue light) to scatter far more than longer ones. This is why the sky appears blue during the day — and it's the same mechanism that amplifies the effect of LED-based lighting on night sky brightness.</p><h3>How Staarlina Helps</h3><p>The City Lens specifically targets these 450–490nm wavelengths, attenuating blue-spectrum light while preserving visibility of warmer stellar colours. This dramatically reduces the perceived skyglow when observed through the lens.</p>`, date:'Feb 2025', readTime:'7 min' },
-  { id:3, cat:'impact', icon:'🐦', title:'Ecological Impact', excerpt:'How artificial light disrupts wildlife, migration patterns, and biological rhythms.', content:`<h2>Ecological Impact of Light Pollution</h2><p>Light pollution affects virtually every ecosystem on Earth. Many species — from fireflies to sea turtles — rely on natural darkness for survival, reproduction, and navigation.</p><h3>Wildlife Disruption</h3><p>Migratory birds use starlight for navigation; artificial lighting causes disorientation and collisions. Sea turtle hatchlings instinctively head toward the brightest horizon (the ocean) but are often led inland by artificial lights. Insects are drawn into fatal spirals around light sources.</p><h3>Human Health Effects</h3><p>Exposure to artificial light at night suppresses melatonin production, disrupting circadian rhythms. Research links light pollution to increased rates of sleep disorders, depression, and certain cancers.</p>`, date:'Jan 2025', readTime:'6 min' },
-  { id:4, cat:'solutions', icon:'🛡', title:'Reducing Light Pollution', excerpt:'Practical steps individuals, cities, and policymakers can take to reduce light pollution.', content:`<h2>Reducing Light Pollution</h2><p>Tackling light pollution requires action at individual, community, and policy levels. Encouragingly, unlike most forms of pollution, light pollution is almost immediately reversible — turn off the light, and the darkness returns.</p><h3>Individual Actions</h3><p>Use directional lighting that points downward; install motion sensors; choose warm-spectrum (2700K or below) bulbs; draw curtains at night; use the minimum light necessary.</p><h3>Community & Policy</h3><p>Dark Sky Reserves and International Dark Sky Parks establish protected areas with strict lighting ordinances. Cities like Tucson, Arizona, and Flagstaff have pioneered city-wide lighting codes that dramatically reduce skyglow.</p>`, date:'Dec 2024', readTime:'8 min' },
-  { id:5, cat:'astronomy', icon:'🌌', title:'Deep Sky Objects', excerpt:'A guide to the most spectacular objects visible from dark skies: nebulae, galaxies, and clusters.', content:`<h2>Deep Sky Objects</h2><p>Beyond individual stars, the night sky contains thousands of breathtaking deep sky objects (DSOs) — but most require dark skies or quality optical filters to observe.</p><h3>Nebulae</h3><p>Clouds of gas and dust, often sites of star formation. The Orion Nebula (M42) is one of the most observed objects in the sky, visible to the naked eye from dark sites. Light pollution reduces its visibility to nearly nothing from cities.</p><h3>Galaxies</h3><p>The Andromeda Galaxy (M31), our nearest large galactic neighbour, spans six times the width of the full Moon. From dark skies it is unmistakable; from cities, invisible. The Astronomy Lens significantly improves contrast for these objects.</p>`, date:'Nov 2024', readTime:'10 min' },
-  { id:6, cat:'astronomy', icon:'🔭', title:'Observational Astronomy for Beginners', excerpt:'How to get started with stargazing, equipment choices, and best practices.', content:`<h2>Observational Astronomy for Beginners</h2><p>Astronomy is one of the most accessible sciences — at its most basic level, it requires nothing more than your eyes, a dark location, and patience. Here's how to begin.</p><h3>Start with Your Eyes</h3><p>Before investing in equipment, spend time learning the naked-eye sky. Learn to identify key constellations, bright planets, and the Milky Way. Use apps like Stellarium to help orient yourself.</p><h3>First Equipment</h3><p>Binoculars (7×50 or 10×50) reveal far more than the naked eye and are highly portable. A small refractor telescope (80–100mm aperture) opens up planetary detail, double stars, and bright deep sky objects.</p><h3>Using AI Lenses</h3><p>Staarlina's Astronomy Lens and Anti-Glare Lens can significantly improve observation quality even from suburban locations, making astronomy accessible to more people than ever before.</p>`, date:'Oct 2024', readTime:'9 min' },
-  { id:7, cat:'science',  icon:'💡', title:'The Science of Contrast', excerpt:'How the brain perceives celestial objects and why contrast matters more than brightness.', content:`<h2>The Science of Contrast</h2><p>When observing celestial objects, what matters is not absolute brightness but contrast — the difference in luminance between the object and the background sky. Even a bright star can be invisible against a light-polluted sky because the contrast ratio collapses.</p><h3>Weber's Law</h3><p>The human visual system detects differences relative to background levels (Weber's Law). When background sky brightness doubles, you need the object to be proportionally brighter to remain perceptible.</p><h3>How Filters Help</h3><p>Narrowband optical filters (like the nebular emission filters built into our Astronomy Lens) work by transmitting specific wavelengths where celestial objects emit light, while blocking the broader spectrum of artificial light pollution. The result is a dramatically improved contrast ratio.</p>`, date:'Sep 2024', readTime:'6 min' },
-  { id:8, cat:'basics',   icon:'🌏', title:'Global Light Pollution Statistics', excerpt:'Data and maps showing the worldwide spread of light pollution and its trends.', content:`<h2>Global Light Pollution Statistics</h2><p>Light pollution has grown dramatically since the electrification of society. Today, 83% of the world's population and more than 99% of people in Europe and the United States live under light-polluted skies.</p><h3>Key Statistics</h3><p>One-third of humanity cannot see the Milky Way from where they live. Night sky brightness is increasing at approximately 2% per year globally. Europe and North America show the highest saturation of light-polluted areas.</p><h3>Trends</h3><p>Despite growing awareness, the transition to LED lighting has paradoxically worsened skyglow in many regions, as the efficiency gains have led to more lights being installed rather than energy savings being taken.</p>`, date:'Aug 2024', readTime:'5 min' },
+  { id:1, cat:'basics', icon:'🌃', title:'What is Light Pollution?', excerpt:'An introduction to the brightening of the night sky caused by artificial light sources.', content:`<h2>What is Light Pollution?</h2><p>Light pollution refers to the excessive, misdirected, or obtrusive artificial light produced by human activity.</p>`, date:'Mar 2025', readTime:'5 min' },
+  { id:2, cat:'science', icon:'🔵', title:'Blue Light & The Night Sky', excerpt:'Why blue-light wavelengths from LEDs are the most damaging contributors to light pollution.', content:`<h2>Blue Light & The Night Sky</h2><p>Modern LED lighting, while energy-efficient, emits a disproportionate amount of blue-wavelength light.</p>`, date:'Feb 2025', readTime:'7 min' },
+  { id:3, cat:'impact', icon:'🐦', title:'Ecological Impact', excerpt:'How artificial light disrupts wildlife, migration patterns, and biological rhythms.', content:`<h2>Ecological Impact of Light Pollution</h2><p>Light pollution affects virtually every ecosystem on Earth.</p>`, date:'Jan 2025', readTime:'6 min' },
+  { id:4, cat:'solutions', icon:'🛡', title:'Reducing Light Pollution', excerpt:'Practical steps individuals, cities, and policymakers can take to reduce light pollution.', content:`<h2>Reducing Light Pollution</h2><p>Tackling light pollution requires action at individual, community, and policy levels.</p>`, date:'Dec 2024', readTime:'8 min' },
+  { id:5, cat:'astronomy', icon:'🌌', title:'Deep Sky Objects', excerpt:'A guide to the most spectacular objects visible from dark skies: nebulae, galaxies, and clusters.', content:`<h2>Deep Sky Objects</h2><p>Beyond individual stars, the night sky contains thousands of breathtaking deep sky objects (DSOs).</p>`, date:'Nov 2024', readTime:'10 min' },
+  { id:6, cat:'astronomy', icon:'🔭', title:'Observational Astronomy for Beginners', excerpt:'How to get started with stargazing, equipment choices, and best practices.', content:`<h2>Observational Astronomy for Beginners</h2><p>Astronomy is one of the most accessible sciences — at its most basic level, it requires nothing more than your eyes.</p>`, date:'Oct 2024', readTime:'9 min' },
+  { id:7, cat:'science',  icon:'💡', title:'The Science of Contrast', excerpt:'How the brain perceives celestial objects and why contrast matters more than brightness.', content:`<h2>The Science of Contrast</h2><p>When observing celestial objects, what matters is not absolute brightness but contrast.</p>`, date:'Sep 2024', readTime:'6 min' },
+  { id:8, cat:'basics',   icon:'🌏', title:'Global Light Pollution Statistics', excerpt:'Data and maps showing the worldwide spread of light pollution and its trends.', content:`<h2>Global Light Pollution Statistics</h2><p>Light pollution has grown dramatically since the electrification of society.</p>`, date:'Aug 2024', readTime:'5 min' },
 ];
 
 function renderArticles(cat) {
@@ -713,40 +607,56 @@ function renderArticles(cat) {
 }
 
 function filterArticles(cat, btn) {
-  document.querySelectorAll('.topic-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderArticles(cat);
+  document.querySelectorAll('.topic-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); renderArticles(cat);
 }
 
 function openArticle(id) {
-  const art = articles.find(a => a.id === id);
-  if (!art) return;
+  const art = articles.find(a => a.id === id); if (!art) return;
   document.getElementById('modalContent').innerHTML = art.content;
-  document.getElementById('articleModal').classList.add('open');
-  document.body.style.overflow = 'hidden';
+  document.getElementById('articleModal').classList.add('open'); document.body.style.overflow = 'hidden';
 }
 
-function closeArticle() {
-  document.getElementById('articleModal').classList.remove('open');
-  document.body.style.overflow = '';
+function closeArticle() { document.getElementById('articleModal').classList.remove('open'); document.body.style.overflow = ''; }
+
+// ===================== RESEARCH FEED & DB INTEGRATION =====================
+async function fetchObservations(filter = 'recent') {
+  let query = supabase.from('observations').select('*, profiles(display_name)');
+
+  if (filter === 'popular') query = query.order('upvotes', { ascending: false });
+  else if (filter === 'dark') query = query.order('bortle_scale', { ascending: true });
+  else query = query.order('created_at', { ascending: false });
+
+  const { data, error } = await query;
+  if (error) {
+    console.error('Error fetching observations:', error.message);
+    return;
+  }
+
+  currentFeed = data.map(item => ({
+    id: item.id,
+    title: item.title,
+    location: item.location,
+    bortle: item.bortle_scale,
+    lens: item.lens_used,
+    date: new Date(item.created_at).toLocaleDateString(),
+    user: item.profiles ? `@${item.profiles.display_name.replace(/\s/g,'_').toLowerCase()}` : '@anonymous',
+    notes: item.notes,
+    upvotes: item.upvotes
+  }));
+
+  renderFeedUI();
 }
 
-// ===================== RESEARCH FEED =====================
-const sampleFeed = [
-  { id:1, title:'Milky Way Visibility — East Sussex Countryside', location:'East Sussex, UK', bortle:3, lens:'Astronomy Lens', date:'2 days ago', user:'@astro_sarah', notes:'Incredible transparency. M31 visible naked eye. Used Astronomy Lens to pull out Orion Nebula detail.', upvotes:42 },
-  { id:2, title:'Downtown Manchester Observation Test', location:'Manchester, UK', bortle:8, lens:'City Lens', date:'5 days ago', user:'@urbangazer_mcr', notes:'City Lens dramatically reduced LED glare from Piccadilly. Managed to see Jupiter and a handful of bright stars.', upvotes:31 },
-  { id:3, title:'Atacama Desert Baseline Reading', location:'Atacama, Chile', bortle:1, lens:'No Lens', date:'1 week ago', user:'@chile_observer', notes:'Pristine sky, no lens needed. Zodiacal light and gegenschein both clearly visible. Milky Way casts a shadow.', upvotes:89 },
-  { id:4, title:'Cherry Springs State Park — Family Night', location:'Pennsylvania, USA', bortle:1, lens:'Astronomy Lens', date:'2 weeks ago', user:'@pa_starparty', notes:'Amazing dark sky event. Kids saw the Milky Way for the first time. Used Astronomy Lens for star cluster detail.', upvotes:67 },
-  { id:5, title:'Anti-Glare Lens Test — Suburban London', location:'Croydon, UK', bortle:7, lens:'Anti-Glare Lens', date:'3 weeks ago', user:'@south_london_sky', notes:'Anti-Glare lens effectively neutralised the fluorescent lamp halos. Better than expected for suburban conditions.', upvotes:25 },
-];
-
-function renderFeed(filter) {
+function renderFeedUI() {
   const list = document.getElementById('feedList');
   if (!list) return;
-  let data = [...sampleFeed];
-  if (filter === 'popular') data.sort((a,b) => b.upvotes - a.upvotes);
-  else if (filter === 'dark')   data.sort((a,b) => a.bortle - b.bortle);
-  list.innerHTML = data.map(f => `
+
+  if (currentFeed.length === 0) {
+    list.innerHTML = '<p style="color: var(--muted); text-align: center; padding: 20px;">No observations yet. Be the first!</p>';
+    return;
+  }
+
+  list.innerHTML = currentFeed.map(f => `
     <div class="feed-entry">
       <div class="feed-entry-header">
         <h4>${f.title}</h4>
@@ -767,7 +677,7 @@ function renderFeed(filter) {
 function filterFeed(filter, btn) {
   document.querySelectorAll('.feed-filter').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  renderFeed(filter);
+  fetchObservations(filter);
 }
 
 // ===================== RESEARCH FORM =====================
@@ -787,59 +697,69 @@ async function submitResearch() {
   const title    = document.getElementById('resTitle').value.trim();
   const location = document.getElementById('resLocation').value.trim();
   const notes    = document.getElementById('resNotes').value.trim();
+  const bortleVal = document.getElementById('resBortle').value; 
+  const bortleScore = parseInt(bortleVal.charAt(0)) || 5;
+
   if (!title || !location) { showToast('Please fill in title and location', 'error'); return; }
   if (!state.user) { showToast('Please sign in to submit research', 'error'); openAuth(); return; }
 
-  const bortle   = parseInt(document.getElementById('resBortle').value) || 5;
-  const lens_used = document.getElementById('resLens').value;
-
-  const { error } = await supabase.from('observations').insert({
-    user_id:     state.user.id,
-    title,
-    location,
-    bortle_scale: bortle,
-    lens_used,
-    notes:       notes || 'Observation submitted via Staarlina.',
-  });
-
-  if (error) { showToast('Submission failed: ' + error.message, 'error'); return; }
-
-  // Also add to local feed for immediate display
-  sampleFeed.unshift({
-    id: Date.now(),
-    title, location,
-    bortle, lens: lens_used,
-    date: 'Just now',
-    user: `@${state.user.name.replace(/\s/g, '_').toLowerCase()}`,
+  const newEntry = {
+    user_id: state.user.id,
+    title: title,
+    location: location,
+    bortle_scale: bortleScore,
+    lens_used: document.getElementById('resLens').value,
     notes: notes || 'Observation submitted via Staarlina.',
-    upvotes: 0,
-  });
+  };
+
+  const { error } = await supabase.from('observations').insert([newEntry]);
+  
+  if (error) {
+    showToast(`Error: ${error.message}`, 'error');
+    return;
+  }
 
   showToast('Observation submitted! Thank you for contributing.', 'success');
-  document.getElementById('resTitle').value    = '';
+  document.getElementById('resTitle').value = '';
   document.getElementById('resLocation').value = '';
-  document.getElementById('resNotes').value    = '';
-  renderFeed('recent');
+  document.getElementById('resNotes').value = '';
+  fetchObservations('recent');
 }
 
-// ===================== AUTH =====================
-function openAuth() {
-  document.getElementById('authModal').classList.add('open');
-  document.body.style.overflow = 'hidden';
+// ===================== AUTH AND SUPABASE SESSION =====================
+async function initAuth() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    await fetchAndSetUser(session.user);
+  }
+
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      await fetchAndSetUser(session.user);
+    } else if (event === 'SIGNED_OUT') {
+      state.user = null;
+      document.getElementById('loginBtn').textContent = 'Sign In';
+    }
+  });
 }
-function closeAuth() {
-  document.getElementById('authModal').classList.remove('open');
-  document.body.style.overflow = '';
+
+async function fetchAndSetUser(authUser) {
+  const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).single();
+  const displayName = profile ? profile.display_name : authUser.email.split('@')[0];
+  state.user = { id: authUser.id, name: displayName, email: authUser.email };
+  document.getElementById('loginBtn').textContent = `👤 ${displayName.split(' ')[0]}`;
 }
+
+function openAuth() { document.getElementById('authModal').classList.add('open'); document.body.style.overflow = 'hidden'; }
+function closeAuth() { document.getElementById('authModal').classList.remove('open'); document.body.style.overflow = ''; }
 
 document.getElementById('loginBtn').addEventListener('click', () => {
   if (state.user) { logoutUser(); } else { openAuth(); }
 });
 
 function switchAuthTab(tab, btn) {
-  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('loginForm').style.display    = tab === 'login'    ? 'block' : 'none';
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active');
+  document.getElementById('loginForm').style.display    = tab === 'login' ? 'block' : 'none';
   document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
 }
 
@@ -848,30 +768,13 @@ async function manualLogin() {
   const pass  = document.getElementById('authPassword').value;
   if (!email || !pass) { showToast('Please fill in all fields', 'error'); return; }
 
-  const loginBtn = document.querySelector('#loginForm .btn-primary');
-  loginBtn.textContent = 'Signing in…';
-  loginBtn.disabled = true;
-
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
-
-  loginBtn.textContent = 'Sign In';
-  loginBtn.disabled = false;
-
-  if (error) { showToast(error.message, 'error'); return; }
-
-  // Fetch profile from DB
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('display_name, role')
-    .eq('id', data.user.id)
-    .single();
-
-  loginSuccess({
-    id:    data.user.id,
-    name:  profile?.display_name ?? email.split('@')[0],
-    email: data.user.email,
-    role:  profile?.role ?? 'Amateur Astronomer',
-  });
+  const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+  if (error) {
+    showToast(error.message, 'error');
+  } else {
+    closeAuth();
+    showToast('Signed in successfully', 'success');
+  }
 }
 
 async function registerUser() {
@@ -879,83 +782,31 @@ async function registerUser() {
   const email = document.getElementById('regEmail').value.trim();
   const pass  = document.getElementById('regPassword').value;
   const role  = document.getElementById('regRole').value;
-
   if (!name || !email || !pass) { showToast('Please fill in all fields', 'error'); return; }
-  if (pass.length < 6) { showToast('Password must be at least 6 characters', 'error'); return; }
-
-  const regBtn = document.querySelector('#registerForm .btn-primary');
-  regBtn.textContent = 'Creating account…';
-  regBtn.disabled = true;
 
   const { data, error } = await supabase.auth.signUp({ email, password: pass });
 
   if (error) {
-    regBtn.textContent = 'Create Account';
-    regBtn.disabled = false;
     showToast(error.message, 'error');
     return;
   }
 
-  // Insert profile row
-  const { error: profileError } = await supabase.from('profiles').insert({
-    id:           data.user.id,
-    display_name: name,
-    email:        email,
-    role:         role,
-  });
-
-  regBtn.textContent = 'Create Account';
-  regBtn.disabled = false;
-
-  if (profileError) {
-    showToast('Account created but profile save failed: ' + profileError.message, 'error');
-    return;
+  // Insert supplementary data into profiles table
+  if (data.user) {
+    const { error: profileError } = await supabase.from('profiles').insert([
+      { id: data.user.id, display_name: name, email: email, role: role }
+    ]);
+    if (profileError) console.error("Profile Insert Error:", profileError.message);
   }
 
-  loginSuccess({ id: data.user.id, name, email, role });
-}
-
-function loginSuccess(user) {
-  state.user = user;
-  document.getElementById('loginBtn').textContent = `👤 ${user.name.split(' ')[0]}`;
   closeAuth();
-  showToast(`Welcome, ${user.name}!`, 'success');
+  showToast('Account created successfully!', 'success');
 }
 
 async function logoutUser() {
   await supabase.auth.signOut();
-  state.user = null;
-  document.getElementById('loginBtn').textContent = 'Sign In';
   showToast('Signed out');
 }
-
-// Restore session on page load
-async function restoreSession() {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return;
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('display_name, role')
-    .eq('id', session.user.id)
-    .single();
-
-  state.user = {
-    id:    session.user.id,
-    name:  profile?.display_name ?? session.user.email.split('@')[0],
-    email: session.user.email,
-    role:  profile?.role ?? 'Amateur Astronomer',
-  };
-  document.getElementById('loginBtn').textContent = `👤 ${state.user.name.split(' ')[0]}`;
-}
-
-// Listen for auth state changes (e.g. token refresh)
-supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_OUT') {
-    state.user = null;
-    document.getElementById('loginBtn').textContent = 'Sign In';
-  }
-});
 
 // ===================== LANGUAGE =====================
 const translations = {
@@ -971,40 +822,31 @@ const translations = {
 document.getElementById('langSelect').addEventListener('change', function() {
   const lang = this.value;
   const t = translations[lang] || translations.en;
-  const pages = ['home','sky-lab','lenses','map','education','research','goggles'];
   const keys  = ['nav_home','nav_skylab','nav_lenses','nav_map','nav_learn','nav_research','nav_goggles'];
   document.querySelectorAll('.nav-link').forEach((link, i) => { link.textContent = t[keys[i]]; });
   showToast(`Language changed`);
 });
 
 // ===================== GOGGLES PAGE =====================
-function scrollToSpecs() {
-  document.getElementById('specs').scrollIntoView({ behavior: 'smooth' });
-}
+function scrollToSpecs() { document.getElementById('specs').scrollIntoView({ behavior: 'smooth' }); }
 
-// Lens glow animation on goggles vis
 setInterval(() => {
-  const lensL = document.getElementById('goggleLensL');
-  const lensR = document.getElementById('goggleLensR');
+  const lensL = document.getElementById('goggleLensL'); const lensR = document.getElementById('goggleLensR');
   if (!lensL || !lensR) return;
   const lenses = [
-    'radial-gradient(ellipse at 30% 30%, rgba(124,58,237,0.4), rgba(4,2,15,0.7))',
-    'radial-gradient(ellipse at 30% 30%, rgba(236,72,153,0.4), rgba(4,2,15,0.7))',
-    'radial-gradient(ellipse at 30% 30%, rgba(234,179,8,0.3), rgba(4,2,15,0.7))',
-    'radial-gradient(ellipse at 30% 30%, rgba(20,184,166,0.35), rgba(4,2,15,0.7))',
+    'radial-gradient(ellipse at 30% 30%, rgba(124,58,237,0.4), rgba(4,2,15,0.7))', 'radial-gradient(ellipse at 30% 30%, rgba(236,72,153,0.4), rgba(4,2,15,0.7))',
+    'radial-gradient(ellipse at 30% 30%, rgba(234,179,8,0.3), rgba(4,2,15,0.7))', 'radial-gradient(ellipse at 30% 30%, rgba(20,184,166,0.35), rgba(4,2,15,0.7))',
     'radial-gradient(ellipse at 30% 30%, rgba(96,165,250,0.35), rgba(4,2,15,0.7))',
   ];
   const choice = lenses[Math.floor(Math.random() * lenses.length)];
-  lensL.style.background = choice;
-  lensR.style.background = choice;
+  lensL.style.background = choice; lensR.style.background = choice;
 }, 2500);
 
 // ===================== TOAST =====================
 let toastTimer;
 function showToast(msg, type = '') {
   const toast = document.getElementById('toast');
-  toast.textContent = msg;
-  toast.className = `toast show ${type}`;
+  toast.textContent = msg; toast.className = `toast show ${type}`;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { toast.classList.remove('show'); }, 3000);
 }
@@ -1015,119 +857,79 @@ if (dropZone) {
   dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = 'var(--purple-lt)'; });
   dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = ''; });
   dropZone.addEventListener('drop', e => {
-    e.preventDefault();
-    dropZone.style.borderColor = '';
+    e.preventDefault(); dropZone.style.borderColor = '';
     const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
-      const fakeInput = { files: [file] };
-      previewImage(fakeInput);
-    }
+    if (file && file.type.startsWith('image/')) { previewImage({ files: [file] }); }
   });
 }
 
 // ===================== INIT =====================
 window.addEventListener('DOMContentLoaded', () => {
-  restoreSession();
+  initAuth();
   navigateTo('home');
-  // Set datetime default
   const dtInput = document.getElementById('resDatetime');
   if (dtInput) dtInput.value = new Date().toISOString().slice(0,16);
-  // Initial sky canvas
   setTimeout(initSkyCanvas, 100);
+  
+  // Init battery bar for luminova page
+  const bar = document.getElementById('lumBattBar');
+  if (bar) bar.style.width = '100%';
 });
 
-// Resize sky canvas on window resize
 window.addEventListener('resize', () => {
-  if (state.currentPage === 'sky-lab') {
-    setTimeout(initSkyCanvas, 200);
-  }
-  if (state.currentPage === 'map') {
-    setTimeout(initMapCanvas, 200);
-  }
+  if (state.currentPage === 'sky-lab') setTimeout(initSkyCanvas, 200);
+  if (state.currentPage === 'map') setTimeout(initMapCanvas, 200);
 });
 
 // ===================== LUMINOVA INTERACTIVE PAGE =====================
-
-// Hotspot info panel switcher
 function selectHotspot(infoId, btn) {
-  // Reset all hotspots
   document.querySelectorAll('.lum-hotspot').forEach(h => h.classList.remove('active'));
-  // Hide all detail panels
   document.querySelectorAll('.lum-info-detail').forEach(d => d.style.display = 'none');
   document.getElementById('lum-info-default').style.display = 'none';
 
-  // Activate clicked hotspot
   btn.classList.add('active');
-
-  // Show matching detail panel
   const panel = document.getElementById('info-' + infoId);
-  if (panel) {
-    panel.style.display = 'block';
-    panel.style.animation = 'fadeInUp 0.35s ease';
-  }
+  if (panel) { panel.style.display = 'block'; panel.style.animation = 'fadeInUp 0.35s ease'; }
 
-  // Animate image glow based on hotspot
   const img = document.getElementById('lumProductImg');
   const glowMap = {
-    'ai-chip':  'brightness(1.1) saturate(1.2) hue-rotate(20deg)',
-    'lens-r':   'brightness(1.15) saturate(1.3) hue-rotate(-10deg)',
-    'lens-l':   'brightness(1.1) saturate(1.1) hue-rotate(30deg)',
-    'battery':  'brightness(1.05) saturate(1.0)',
+    'ai-chip':  'brightness(1.1) saturate(1.2) hue-rotate(20deg)', 'lens-r':   'brightness(1.15) saturate(1.3) hue-rotate(-10deg)',
+    'lens-l':   'brightness(1.1) saturate(1.1) hue-rotate(30deg)', 'battery':  'brightness(1.05) saturate(1.0)',
     'camera':   'brightness(1.2) saturate(1.15) hue-rotate(-5deg)',
   };
   if (img) img.style.filter = glowMap[infoId] || 'brightness(1.05)';
 }
 
-// Lens color preview in hotspot panel
 function previewLensColor(lens, btn) {
-  document.querySelectorAll('.lum-swatch').forEach(s => s.classList.remove('active'));
-  btn.classList.add('active');
-
-  const bar = document.getElementById('lumLensPreviewBar');
-  const label = document.getElementById('lumLensPreviewLabel');
+  document.querySelectorAll('.lum-swatch').forEach(s => s.classList.remove('active')); btn.classList.add('active');
+  const bar = document.getElementById('lumLensPreviewBar'); const label = document.getElementById('lumLensPreviewLabel');
   const descriptions = {
-    city:     'Warm amber tint — LED blue-light filtered. Streets glow amber, stars pop.',
-    astro:    'Deep violet contrast mode — maximum star visibility, Milky Way enhanced.',
-    antiglare:'Teal-tinted glare suppression — halos eliminated, natural background preserved.',
-    bright:   'Rose-tinted luminance reduction — ideal for bright suburban environments.',
+    city:     'Warm amber tint — LED blue-light filtered. Streets glow amber, stars pop.', astro:    'Deep violet contrast mode — maximum star visibility, Milky Way enhanced.',
+    antiglare:'Teal-tinted glare suppression — halos eliminated, natural background preserved.', bright:   'Rose-tinted luminance reduction — ideal for bright suburban environments.',
     custom:   'Multi-spectrum blend — fully customisable for your observation site.',
   };
   const colors = {
-    city:     'linear-gradient(90deg,rgba(245,158,11,0.25),rgba(180,83,9,0.15))',
-    astro:    'linear-gradient(90deg,rgba(124,58,237,0.3),rgba(76,29,149,0.2))',
-    antiglare:'linear-gradient(90deg,rgba(20,184,166,0.25),rgba(13,148,136,0.15))',
-    bright:   'linear-gradient(90deg,rgba(236,72,153,0.25),rgba(157,23,77,0.15))',
+    city:     'linear-gradient(90deg,rgba(245,158,11,0.25),rgba(180,83,9,0.15))', astro:    'linear-gradient(90deg,rgba(124,58,237,0.3),rgba(76,29,149,0.2))',
+    antiglare:'linear-gradient(90deg,rgba(20,184,166,0.25),rgba(13,148,136,0.15))', bright:   'linear-gradient(90deg,rgba(236,72,153,0.25),rgba(157,23,77,0.15))',
     custom:   'linear-gradient(90deg,rgba(234,179,8,0.2),rgba(124,58,237,0.2))',
   };
-  if (bar) {
-    bar.style.background = colors[lens] || '';
-    bar.style.borderColor = 'var(--border-glow)';
-    bar.style.color = 'var(--white)';
-  }
+  if (bar) { bar.style.background = colors[lens] || ''; bar.style.borderColor = 'var(--border-glow)'; bar.style.color = 'var(--white)'; }
   if (label) label.textContent = descriptions[lens] || '';
 }
 
-// Blue-light slider demo on lens-l hotspot
 function updateLumBlDemo(input) {
   const val = input.value;
-  const display = document.getElementById('lumBlVal');
-  if (display) display.textContent = val;
-
+  const display = document.getElementById('lumBlVal'); if (display) display.textContent = val;
   const warmSky = document.getElementById('warmSky');
   if (warmSky) {
-    // As blue light reduction increases, sky shifts warmer/darker
     const warmth = Math.round(val * 0.8);
     warmSky.style.background = `linear-gradient(135deg, hsl(${20 - val*0.15},${60 + warmth*0.3}%,${15 + (100-val)*0.12}%), hsl(${35 - val*0.2},${70}%,${25 + (100-val)*0.15}%))`;
   }
 }
 
-// Battery mode switcher
 function setBattMode(mode, btn) {
-  document.querySelectorAll('.lum-batt-mode').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-
-  const bar = document.getElementById('lumBattBar');
-  const label = document.getElementById('lumBattLabel');
+  document.querySelectorAll('.lum-batt-mode').forEach(b => b.classList.remove('active')); btn.classList.add('active');
+  const bar = document.getElementById('lumBattBar'); const label = document.getElementById('lumBattLabel');
   const configs = {
     observe:   { pct: 100, label: '18 hrs remaining', color: 'linear-gradient(90deg,var(--purple),var(--purple-lt))' },
     camera:    { pct: 50,  label: '9 hrs remaining',  color: 'linear-gradient(90deg,var(--teal),#34d399)' },
@@ -1138,71 +940,39 @@ function setBattMode(mode, btn) {
   if (label) label.textContent = cfg.label;
 }
 
-// Lens tab switcher for main lens section
 const lumLensData = {
   city: {
-    title: 'City Lens',
-    desc:  'Engineered for urban environments. Selectively attenuates LED blue-light frequencies (450–490nm) — the primary contributor to city sky glow — replacing harsh cold tones with warm amber hues. Perfect for city rooftops and suburban gardens.',
-    blue: '90%', contrast: '40%', glare: '65%',
-    visClass: 'city-vis',
-    barColor: ['var(--amber)', 'var(--violet)', 'var(--teal)'],
+    title: 'City Lens', desc:  'Engineered for urban environments. Selectively attenuates LED blue-light frequencies (450–490nm) — the primary contributor to city sky glow — replacing harsh cold tones with warm amber hues.',
+    blue: '90%', contrast: '40%', glare: '65%', visClass: 'city-vis', barColor: ['var(--amber)', 'var(--violet)', 'var(--teal)'],
   },
   astronomy: {
-    title: 'Astronomy Lens',
-    desc:  'Maximises contrast ratio for deep-sky observation. Sharpens the luminance differential between celestial bodies and the surrounding sky, making faint nebulae, star clusters, and galaxies dramatically more visible.',
-    blue: '55%', contrast: '95%', glare: '40%',
-    visClass: 'astro-vis',
-    barColor: ['var(--purple)', 'var(--purple-lt)', 'var(--violet)'],
+    title: 'Astronomy Lens', desc:  'Maximises contrast ratio for deep-sky observation. Sharpens the luminance differential between celestial bodies and the surrounding sky, making faint nebulae, star clusters, and galaxies dramatically more visible.',
+    blue: '55%', contrast: '95%', glare: '40%', visClass: 'astro-vis', barColor: ['var(--purple)', 'var(--purple-lt)', 'var(--violet)'],
   },
   antiglare: {
-    title: 'Anti-Glare Lens',
-    desc:  'Neutralises point sources of artificial light — street lamps, billboards, illuminated windows — without darkening the entire visual field. Preserves the natural sky background while eliminating distracting halos.',
-    blue: '60%', contrast: '65%', glare: '95%',
-    visClass: 'antiglare-vis',
-    barColor: ['var(--teal)', 'var(--teal)', 'var(--teal)'],
+    title: 'Anti-Glare Lens', desc:  'Neutralises point sources of artificial light — street lamps, billboards, illuminated windows — without darkening the entire visual field. Preserves the natural sky background while eliminating distracting halos.',
+    blue: '60%', contrast: '65%', glare: '95%', visClass: 'antiglare-vis', barColor: ['var(--teal)', 'var(--teal)', 'var(--teal)'],
   },
   brightness: {
-    title: 'Brightness Lens',
-    desc:  'Adapts to excessively bright environments by dynamically attenuating overall luminance while preserving colour accuracy. Useful in transition hours (dusk/dawn) or in areas with overwhelming sky-glow.',
-    blue: '35%', contrast: '45%', glare: '70%',
-    visClass: 'brightness-vis',
-    barColor: ['var(--rose)', 'var(--pink)', 'var(--rose)'],
+    title: 'Brightness Lens', desc:  'Adapts to excessively bright environments by dynamically attenuating overall luminance while preserving colour accuracy. Useful in transition hours (dusk/dawn) or in areas with overwhelming sky-glow.',
+    blue: '35%', contrast: '45%', glare: '70%', visClass: 'brightness-vis', barColor: ['var(--rose)', 'var(--pink)', 'var(--rose)'],
   },
   custom: {
-    title: 'Custom Lens',
-    desc:  'Build your own personalised filter profile. Dial in precise blue-light attenuation, contrast enhancement, and warm-tint intensity. Save multiple profiles for different observation sites and share with the research community.',
-    blue: '100%', contrast: '100%', glare: '100%',
-    visClass: 'custom-vis',
-    barColor: ['var(--gold)', 'var(--gold)', 'var(--gold)'],
+    title: 'Custom Lens', desc:  'Build your own personalised filter profile. Dial in precise blue-light attenuation, contrast enhancement, and warm-tint intensity.',
+    blue: '100%', contrast: '100%', glare: '100%', visClass: 'custom-vis', barColor: ['var(--gold)', 'var(--gold)', 'var(--gold)'],
   },
 };
 
 function switchLumLens(lens, btn) {
-  document.querySelectorAll('.lum-lens-tab').forEach(t => t.classList.remove('active'));
-  btn.classList.add('active');
+  document.querySelectorAll('.lum-lens-tab').forEach(t => t.classList.remove('active')); btn.classList.add('active');
+  const data = lumLensData[lens]; if (!data) return;
+  const titleEl = document.getElementById('lumLensTitle'); const descEl  = document.getElementById('lumLensDesc');
+  const visual  = document.getElementById('llcVisual'); const bar1    = document.getElementById('llcBar1');
+  const bar2    = document.getElementById('llcBar2'); const bar3    = document.getElementById('llcBar3');
 
-  const data = lumLensData[lens];
-  if (!data) return;
-
-  const titleEl = document.getElementById('lumLensTitle');
-  const descEl  = document.getElementById('lumLensDesc');
-  const visual  = document.getElementById('llcVisual');
-  const bar1    = document.getElementById('llcBar1');
-  const bar2    = document.getElementById('llcBar2');
-  const bar3    = document.getElementById('llcBar3');
-
-  if (titleEl) titleEl.textContent = data.title;
-  if (descEl)  descEl.textContent  = data.desc;
-  if (visual) {
-    visual.className = 'llc-visual ' + data.visClass;
-  }
+  if (titleEl) titleEl.textContent = data.title; if (descEl)  descEl.textContent  = data.desc;
+  if (visual) { visual.className = 'llc-visual ' + data.visClass; }
   if (bar1) { bar1.style.width = data.blue;     bar1.style.background = data.barColor[0]; }
   if (bar2) { bar2.style.width = data.contrast; bar2.style.background = data.barColor[1]; }
   if (bar3) { bar3.style.width = data.glare;    bar3.style.background = data.barColor[2]; }
 }
-
-// Init battery bar on page load
-window.addEventListener('DOMContentLoaded', () => {
-  const bar = document.getElementById('lumBattBar');
-  if (bar) bar.style.width = '100%';
-});

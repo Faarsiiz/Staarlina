@@ -943,8 +943,8 @@ async function submitResearch() {
 }
 
 // ===================== SUPABASE =====================
-const SUPABASE_URL  = 'https://nmliyxdcyjgwycppsnba.supabase.co';
-const SUPABASE_ANON = 'sb_publishable_h6JezXaBBbz4XzgHTfN7Bg_EVSLu0-F';
+const SUPABASE_URL  = 'https://lngtgjsxpsmqbaxudmmw.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_-rWV5BTBjx8eXL4vuCFPmg_PyQt5wBl';
 const supabaseDB = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // Sync Supabase auth state into local state and update UI

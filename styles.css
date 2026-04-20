@@ -2021,3 +2021,278 @@ footer {
 .llc-bar-track { background: var(--bg-card2); border-radius: 4px; height: 6px; overflow: hidden; }
 .llc-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
 
+/* ============================================================
+   STAARLINA — Star Explorer styles
+   Paste this block at the END of styles.css
+   ============================================================ */
+
+/* ---- STAR EXPLORER WRAPPER ---- */
+.star-explorer {
+  margin-top: 3rem;
+  padding: 2rem 2.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card), 0 0 60px rgba(124, 58, 237, 0.12);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle nebula decoration behind the widget */
+.star-explorer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 70% 60% at 80% 20%, rgba(124,58,237,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* ---- HEADER ---- */
+.star-explorer-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.star-explorer-icon {
+  font-size: 2.2rem;
+  color: var(--purple-lt);
+  line-height: 1;
+  flex-shrink: 0;
+  text-shadow: 0 0 20px rgba(168, 85, 247, 0.7);
+  animation: starPulse 3s ease-in-out infinite alternate;
+}
+
+@keyframes starPulse {
+  from { opacity: 0.7; text-shadow: 0 0 10px rgba(168,85,247,0.4); }
+  to   { opacity: 1;   text-shadow: 0 0 30px rgba(168,85,247,0.9); }
+}
+
+.star-explorer-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--white);
+  letter-spacing: 0.04em;
+  margin-bottom: 0.25rem;
+}
+
+.star-explorer-subtitle {
+  font-size: 0.875rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* ---- SEARCH ROW ---- */
+.star-search-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.star-search-input {
+  flex: 1;
+  padding: 0.75rem 1.1rem;
+  background: var(--bg-card2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--white);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.star-search-input::placeholder { color: var(--muted); }
+
+.star-search-input:focus {
+  border-color: var(--border-glow);
+  box-shadow: 0 0 0 3px rgba(180, 100, 255, 0.12);
+}
+
+.star-search-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ---- QUICK-SEARCH CHIPS ---- */
+.star-quick-searches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.star-chip-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+.star-chip {
+  padding: 0.3rem 0.8rem;
+  background: rgba(124, 58, 237, 0.12);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 999px;
+  color: var(--violet-lt);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+  font-family: var(--font-body);
+}
+
+.star-chip:hover {
+  background: rgba(124, 58, 237, 0.28);
+  border-color: var(--border-glow);
+  color: var(--white);
+}
+
+/* ---- LOADER ---- */
+.star-loader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+.star-loader-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(168, 85, 247, 0.25);
+  border-top-color: var(--purple-lt);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- ERROR STATE ---- */
+.star-error {
+  padding: 1rem 1.25rem;
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  border-radius: var(--radius);
+  color: #fca5a5;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* ---- RESULT CARD ---- */
+.star-card {
+  margin-top: 0.5rem;
+  padding: 1.75rem;
+  background: var(--bg-card2);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 40px rgba(124, 58, 237, 0.15);
+  position: relative;
+  overflow: hidden;
+  animation: fadeInUp 0.4s ease;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.star-card-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.star-card-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.star-card-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+  text-shadow: 0 0 20px currentColor;
+}
+
+.star-card-name {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--white);
+  letter-spacing: 0.04em;
+  margin-bottom: 0.3rem;
+}
+
+.star-spectral-badge {
+  display: inline-block;
+  padding: 0.2rem 0.65rem;
+  background: rgba(124, 58, 237, 0.2);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--violet-lt);
+}
+
+/* ---- STAT ROWS ---- */
+.star-card-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+  position: relative;
+}
+
+.star-stat-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(140, 80, 255, 0.12);
+  border-radius: var(--radius);
+  transition: border-color var(--transition);
+}
+
+.star-stat-row:hover {
+  border-color: rgba(140, 80, 255, 0.3);
+}
+
+.star-stat-label {
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.star-stat-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--white);
+  font-family: var(--font-mono);
+}
+
+.star-no-data {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* ---- RESPONSIVE ---- */
+@media (max-width: 600px) {
+  .star-explorer { padding: 1.25rem 1rem; }
+  .star-search-row { flex-direction: column; }
+  .star-search-btn { width: 100%; justify-content: center; }
+  .star-card-stats { grid-template-columns: 1fr 1fr; }
+  .star-card-name  { font-size: 1.2rem; }
+}

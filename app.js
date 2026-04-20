@@ -1278,6 +1278,137 @@ function switchLumLens(lens, btn) {
   if (bar3) { bar3.style.width = data.glare;    bar3.style.background = data.barColor[2]; }
 }
 
+
+
+// ===================== STAR EXPLORER — CONFIG =====================
+// SUPABASE_URL is already defined earlier in app.js.
+// The edge function lives at: <your-supabase-project>/functions/v1/star-lookup
+const STAR_LOOKUP_URL = `${SUPABASE_URL}/functions/v1/star-lookup`;
+
+// ===================== QUICK SEARCH (chip buttons) =====================
+function quickStarSearch(name) {
+  const input = document.getElementById('starSearchInput');
+  if (input) input.value = name;
+  lookupStar();
+}
+
+// ===================== STAR LOOKUP =====================
+async function lookupStar() {
+  const input    = document.getElementById('starSearchInput');
+  const query    = input ? input.value.trim() : '';
+  const resultEl = document.getElementById('starResult');
+  const loaderEl = document.getElementById('starLoader');
+  const errorEl  = document.getElementById('starError');
+
+  if (!query) { showToast('Enter a star name to search', 'error'); return; }
+
+  // Reset UI
+  if (resultEl) resultEl.style.display = 'none';
+  if (errorEl)  { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+  if (loaderEl) loaderEl.style.display = 'flex';
+
+  try {
+    // Build headers — attach Supabase auth token if the user is signed in
+    const headers = { 'Content-Type': 'application/json' };
+    const { data: { session } } = await supabaseDB.auth.getSession();
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
+    const res = await fetch(
+      `${STAR_LOOKUP_URL}?name=${encodeURIComponent(query)}&limit=1`,
+      { method: 'GET', headers }
+    );
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    if (loaderEl) loaderEl.style.display = 'none';
+
+    if (!Array.isArray(data) || data.length === 0) {
+      if (errorEl) {
+        errorEl.textContent =
+          `No star found for "${query}". Try a full name like "Sirius" or "Betelgeuse".`;
+        errorEl.style.display = 'block';
+      }
+      return;
+    }
+
+    if (resultEl) {
+      resultEl.innerHTML = buildStarCard(data[0]);
+      resultEl.style.display = 'block';
+    }
+
+  } catch (err) {
+    if (loaderEl) loaderEl.style.display = 'none';
+    if (errorEl) {
+      errorEl.textContent =
+        `Could not fetch star data: ${err.message}. Check your connection or try again.`;
+      errorEl.style.display = 'block';
+    }
+    console.error('Star lookup error:', err);
+  }
+}
+
+// Allow pressing Enter inside the search input
+window.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('starSearchInput');
+  if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') lookupStar(); });
+});
+
+// ===================== STAR CARD RENDERER =====================
+function buildStarCard(star) {
+  const fields = [
+    { key: 'constellation',       label: 'Constellation'       },
+    { key: 'right_ascension',     label: 'Right Ascension'     },
+    { key: 'declination',         label: 'Declination'         },
+    { key: 'apparent_magnitude',  label: 'Apparent Magnitude'  },
+    { key: 'absolute_magnitude',  label: 'Absolute Magnitude'  },
+    { key: 'distance_light_year', label: 'Distance',  unit: 'ly' },
+    { key: 'spectral_class',      label: 'Spectral Class'      },
+  ];
+
+  // Colour-code the star icon by its spectral class
+  const spectralColors = {
+    O: '#a8c0ff', B: '#b8d0ff', A: '#e8eeff',
+    F: '#fff8dc', G: '#fffacd', K: '#ffa040', M: '#ff6030',
+  };
+  const cls       = (star.spectral_class || 'G')[0].toUpperCase();
+  const starColor = spectralColors[cls] || '#c4b5fd';
+
+  const statRows = fields
+    .filter(f => star[f.key] !== undefined && star[f.key] !== null && star[f.key] !== '')
+    .map(f => `
+      <div class="star-stat-row">
+        <span class="star-stat-label">${f.label}</span>
+        <span class="star-stat-value">${escapeHtml(String(star[f.key]))}${f.unit ? ' ' + f.unit : ''}</span>
+      </div>
+    `).join('');
+
+  return `
+    <div class="star-card">
+      <div class="star-card-glow"
+           style="background:radial-gradient(ellipse 60% 60% at 10% 10%,${starColor}33 0%,transparent 70%)">
+      </div>
+      <div class="star-card-header">
+        <div class="star-card-icon" style="color:${starColor}">✦</div>
+        <div class="star-card-name-block">
+          <h4 class="star-card-name">${escapeHtml(star.name || 'Unknown Star')}</h4>
+          ${star.spectral_class
+            ? `<span class="star-spectral-badge">Spectral Class ${escapeHtml(star.spectral_class)}</span>`
+            : ''}
+        </div>
+      </div>
+      <div class="star-card-stats">
+        ${statRows || '<p class="star-no-data">No detailed data available for this star.</p>'}
+      </div>
+    </div>
+  `;
+}
+
 // Init battery bar on page load
 window.addEventListener('DOMContentLoaded', () => {
   const bar = document.getElementById('lumBattBar');

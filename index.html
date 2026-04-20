@@ -237,6 +237,32 @@
           <div class="gallery-empty">Take a snapshot to see it here.</div>
         </div>
       </div>
+
+      <!-- ★ STAR API DATA PANEL ★ -->
+      <div class="star-api-section">
+        <div class="star-api-header">
+          <h3 class="star-api-title">✦ Star Statistics <span class="badge-ai">LIVE API</span></h3>
+          <p class="star-api-subtitle">Search for any star by name, or grant location access to see what's visible above you right now.</p>
+        </div>
+        <div class="star-search-row">
+          <input
+            type="text"
+            id="starSearchInput"
+            class="star-search-input"
+            placeholder="Search a star… e.g. Sirius, Betelgeuse, Polaris"
+            onkeydown="if(event.key==='Enter') fetchStarData(this.value.trim())"
+          />
+          <button class="btn-action" onclick="fetchStarData(document.getElementById('starSearchInput').value.trim())">
+            🔍 Search
+          </button>
+          <button class="btn-action" onclick="requestLocation()">
+            📍 Stars Near Me
+          </button>
+        </div>
+        <div id="starDataPanel" class="star-data-panel">
+          <p class="star-data-empty">Search for a star above, or click "Stars Near Me" to load your local sky.</p>
+        </div>
+      </div>
     </section>
 
     <!-- ===== PAGE: AI LENSES ===== -->
@@ -767,4 +793,3 @@
   <script src="app.js"></script>
 </body>
 </html>
-

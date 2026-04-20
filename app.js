@@ -21,6 +21,169 @@ const state = {
   researchFeed: [],
 };
 
+// ===================== STAR API =====================
+// ⚠️  SECURITY NOTE — read before deploying to GitHub:
+//
+//  API keys placed directly in JavaScript are readable by anyone
+//  who opens DevTools or views your source. For a static site like
+//  this one the safest approach is:
+//
+//    1. Create a Supabase Edge Function (serverless proxy) that holds
+//       the real key server-side and forwards requests.  Your JS then
+//       calls YOUR Supabase function URL, never the third-party API
+//       directly, so the key never reaches the browser.
+//       → See the step-by-step guide in STAR_API_SETUP.md
+//
+//    2. OR add the key to a .env file and a build tool (Vite / Parcel)
+//       so it is injected at build time and excluded from git via
+//       .gitignore.
+//
+//  For local development and testing the key below is fine.
+//  For production, replace the direct fetch calls with your proxy URL.
+
+const STAR_API_KEY      = '2bGdqzaqYjV0OEx7GWgol7G1fhspDZzPfKAqUKHp'; // ← paste your key here ONLY for local testing
+const STAR_API_BASE_URL = 'https://lngtgjsxpsmqbaxudmmw.supabase.co/functions/v1/smart-api'; // adjust to match your Star API's actual base URL
+
+/**
+ * Generic Star API fetcher.
+ * Centralising the fetch here means you only change one place
+ * if the base URL or auth method changes.
+ *
+ * @param {string} endpoint  - e.g. '/bodies/star' or '/search?q=Sirius'
+ * @returns {Promise<object>} - parsed JSON response
+ */
+async function starAPIFetch(endpoint) {
+  try {
+    const res = await fetch(`${STAR_API_BASE_URL}${endpoint}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${STAR_API_KEY}`,
+        'Content-Type':  'application/json',
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Star API error ${res.status}: ${res.statusText}`);
+    }
+    return await res.json();
+  } catch (err) {
+    console.error('Star API fetch failed:', err);
+    showToast('Could not load star data — check your API connection.', 'error');
+    return null;
+  }
+}
+
+/**
+ * Fetch data for a specific star by name.
+ * Called when a user searches in the Sky Lab star panel.
+ *
+ * @param {string} starName - e.g. 'Sirius', 'Betelgeuse'
+ */
+async function fetchStarData(starName) {
+  showToast(`Loading data for ${starName}…`);
+  const data = await starAPIFetch(`/bodies/star?name=${encodeURIComponent(starName)}`);
+  if (data) renderStarPanel(data);
+}
+
+/**
+ * Fetch a list of visible stars for the user's current location.
+ * Called when the user grants location access and loads Sky Lab.
+ *
+ * @param {number} lat
+ * @param {number} lng
+ */
+async function fetchVisibleStars(lat, lng) {
+  const now   = new Date().toISOString();
+  const data  = await starAPIFetch(
+    `/bodies/positions?latitude=${lat}&longitude=${lng}&from_date=${now}&to_date=${now}&elevation=0`
+  );
+  if (data) renderStarList(data);
+}
+
+/**
+ * Render the fetched star statistics into the Star Data panel
+ * inside Sky Lab. Creates the panel if it doesn't exist yet.
+ *
+ * @param {object} data - raw API response
+ */
+function renderStarPanel(data) {
+  const panel = document.getElementById('starDataPanel');
+  if (!panel) return;
+
+  // Adapt these property names to match your Star API's actual response shape.
+  // The names below follow the AstronomyAPI.com schema as a reference.
+  const body = data?.data?.bodies?.[0] || data?.body || data || {};
+  const name        = body.name        || body.id         || 'Unknown Star';
+  const distance    = body.distance    || {};
+  const distVal     = distance.fromEarth?.au  ?? distance.au ?? '—';
+  const magnitude   = body.magnitude   ?? body.apparentMagnitude ?? '—';
+  const constellation = body.constellation?.name ?? body.constellation ?? '—';
+  const type        = body.type        || body.bodyType   || '—';
+  const ra          = body.position?.equatorial?.rightAscension?.string
+                   || body.ra         || '—';
+  const dec         = body.position?.equatorial?.declination?.string
+                   || body.dec        || '—';
+  const altitude    = body.position?.horizontal?.altitude?.string
+                   || body.altitude   || '—';
+  const azimuth     = body.position?.horizontal?.azimuth?.string
+                   || body.azimuth    || '—';
+
+  panel.innerHTML = `
+    <div class="star-data-header">
+      <span class="star-data-icon">✦</span>
+      <h4 class="star-data-name">${name}</h4>
+      <span class="star-data-type">${type}</span>
+    </div>
+    <div class="star-data-grid">
+      <div class="sds"><span class="sds-label">Distance</span><span class="sds-val">${distVal} AU</span></div>
+      <div class="sds"><span class="sds-label">Magnitude</span><span class="sds-val">${magnitude}</span></div>
+      <div class="sds"><span class="sds-label">Constellation</span><span class="sds-val">${constellation}</span></div>
+      <div class="sds"><span class="sds-label">Right Ascension</span><span class="sds-val">${ra}</span></div>
+      <div class="sds"><span class="sds-label">Declination</span><span class="sds-val">${dec}</span></div>
+      <div class="sds"><span class="sds-label">Altitude</span><span class="sds-val">${altitude}</span></div>
+      <div class="sds"><span class="sds-label">Azimuth</span><span class="sds-val">${azimuth}</span></div>
+    </div>
+  `;
+  panel.classList.add('has-data');
+}
+
+/**
+ * Render a short list of visible stars returned by the positions endpoint.
+ *
+ * @param {object} data - raw API response
+ */
+function renderStarList(data) {
+  const panel = document.getElementById('starDataPanel');
+  if (!panel) return;
+
+  const bodies = data?.data?.rows ?? data?.bodies ?? [];
+  if (!bodies.length) {
+    panel.innerHTML = '<p class="star-data-empty">No visible stars found for this location right now.</p>';
+    return;
+  }
+
+  const rows = bodies
+    .filter(b => b.name || b.id)
+    .slice(0, 8) // show up to 8 results
+    .map(b => {
+      const alt = b.position?.horizontal?.altitude?.string ?? b.altitude ?? '—';
+      return `
+        <div class="star-list-row" onclick="fetchStarData('${b.name || b.id}')">
+          <span class="slr-name">✦ ${b.name || b.id}</span>
+          <span class="slr-alt">Alt: ${alt}</span>
+        </div>`;
+    }).join('');
+
+  panel.innerHTML = `
+    <div class="star-data-header">
+      <h4 class="star-data-name">Visible Stars Near You</h4>
+    </div>
+    <div class="star-list">${rows}</div>
+    <p class="star-data-hint">Click a star to see its statistics.</p>
+  `;
+  panel.classList.add('has-data');
+}
+
 // ===================== NAVIGATION =====================
 function navigateTo(pageId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -515,6 +678,9 @@ function requestLocation() {
       const lng = pos.coords.longitude.toFixed(3);
       document.getElementById('hudLocation').textContent = `📍 ${lat}, ${lng}`;
       showToast(`Location acquired: ${lat}, ${lng}`, 'success');
+
+      // Fetch visible stars for this location from the Star API
+      fetchVisibleStars(pos.coords.latitude, pos.coords.longitude);
     },
     err => showToast('Location access denied', 'error')
   );
@@ -1283,4 +1449,3 @@ window.addEventListener('DOMContentLoaded', () => {
   const bar = document.getElementById('lumBattBar');
   if (bar) bar.style.width = '100%';
 });
-

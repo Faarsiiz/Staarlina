@@ -2021,3 +2021,144 @@ footer {
 .llc-bar-track { background: var(--bg-card2); border-radius: 4px; height: 6px; overflow: hidden; }
 .llc-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
 
+
+/* ============================================================
+   STAR API SECTION
+   ============================================================ */
+.star-api-section {
+  margin-top: 40px;
+  padding: 32px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(12px);
+}
+
+.star-api-header { margin-bottom: 20px; }
+
+.star-api-title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--white);
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.star-api-subtitle {
+  font-size: 0.83rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.star-search-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.star-search-input {
+  flex: 1;
+  min-width: 220px;
+  background: var(--bg-card2);
+  border: 1px solid var(--border);
+  color: var(--white);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  transition: border-color 0.25s;
+}
+.star-search-input::placeholder { color: var(--muted); }
+.star-search-input:focus { outline: none; border-color: var(--purple-lt); }
+
+/* The panel that receives rendered API data */
+.star-data-panel {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  min-height: 80px;
+  transition: border-color 0.3s;
+}
+.star-data-panel.has-data { border-color: var(--purple-lt); }
+
+.star-data-empty {
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-align: center;
+  padding: 12px 0;
+}
+
+/* Star statistics card */
+.star-data-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.star-data-icon  { font-size: 1.3rem; color: var(--amber); }
+.star-data-name  { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; color: var(--white); }
+.star-data-type  {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--purple-lt);
+  background: rgba(124,58,237,0.15);
+  border: 1px solid rgba(124,58,237,0.3);
+  border-radius: 20px;
+  padding: 2px 10px;
+}
+
+/* Stats grid */
+.star-data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+.sds {
+  background: var(--bg-card2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sds-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+.sds-val {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--amber);
+  font-family: var(--font-mono);
+}
+
+/* Star list (visible stars near you) */
+.star-list { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+.star-list-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  background: var(--bg-card2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  transition: all 0.2s;
+}
+.star-list-row:hover { border-color: var(--purple-lt); background: rgba(124,58,237,0.1); }
+.slr-name { color: var(--white); font-weight: 600; }
+.slr-alt  { color: var(--muted); font-family: var(--font-mono); font-size: 0.72rem; }
+.star-data-hint { font-size: 0.72rem; color: var(--muted); text-align: center; margin-top: 8px; }

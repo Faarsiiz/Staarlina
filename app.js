@@ -1415,39 +1415,3 @@ window.addEventListener('DOMContentLoaded', () => {
   if (bar) bar.style.width = '100%';
 });
 
-// ===================== STAR API TEST =====================
-async function testStarAPI() {
-  console.log('%c✦ Star API Test Starting...', 'color: #a855f7; font-weight: bold;');
-
-  const testStars = ['Sirius', 'Polaris', 'Vega'];
-
-  for (const name of testStars) {
-    try {
-      console.log(`%c→ Fetching: ${name}`, 'color: #c4b5fd;');
-
-      const { data: { session } } = await supabaseDB.auth.getSession();
-      const headers = {};
-      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
-
-      const res = await fetch(
-        `${SUPABASE_URL}/functions/v1/star-lookup?name=${encodeURIComponent(name)}&limit=1`,
-        { method: 'GET', headers }
-      );
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const data = await res.json();
-
-      if (!Array.isArray(data) || data.length === 0) {
-        console.warn(`  ⚠ No results returned for "${name}"`);
-      } else {
-        console.log(`%c  ✓ ${data[0].name}`, 'color: #34d399; font-weight: bold;', data[0]);
-      }
-
-    } catch (err) {
-      console.error(`  ✗ Failed for "${name}":`, err.message);
-    }
-  }
-
-  console.log('%c✦ Test complete.', 'color: #a855f7; font-weight: bold;');
-}

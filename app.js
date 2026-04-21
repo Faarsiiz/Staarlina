@@ -558,6 +558,13 @@ const orlResources = [
     icon: '🗺'
   },
   {
+    title: 'Light Pollution Map (lightpollutionmap.app)',
+    url: 'https://lightpollutionmap.app/',
+    description: 'Modern light pollution map with Bortle Scale readings, dark-sky site discovery, estimated visible stars, SQM comparisons, and all-sky skyglow simulations. Built on NOAA VIIRS satellite data.',
+    category: 'Light Pollution',
+    icon: '📍'
+  },
+  {
     title: 'Dark Site Finder',
     url: 'https://darksitefinder.com/map/',
     description: 'Find the darkest observation sites near you. Overlay shows multiple years of satellite data and marked dark-sky locations.',

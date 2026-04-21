@@ -34,7 +34,7 @@ function navigateTo(pageId) {
   if (pageId === 'sky-lab') initSkyCanvas();
   if (pageId === 'education') renderArticles('all');
   if (pageId === 'research') renderFeed('recent');
-  if (pageId === 'map') initMapCanvas();
+  if (pageId === 'map') renderResources();
   updateHudTime();
 }
 
@@ -543,126 +543,243 @@ function updateHudTime() {
 setInterval(updateHudTime, 30000);
 updateHudTime();
 
-// ===================== MAP =====================
-function initMap() {
-  document.getElementById('mapPlaceholder').classList.add('hidden');
-  state.mapInitialised = true;
-  requestLocation();
-  initMapCanvas();
-}
+// ===================== OPEN RESOURCE LIBRARY =====================
+// A curated list of trusted external astronomy & light pollution sites.
+// To add, remove, or edit a resource, just modify this array — no
+// database or backend setup needed.
 
-function initMapCanvas() {
-  const canvas = document.getElementById('mapCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width  = canvas.offsetWidth  || 800;
-  const H = canvas.height = canvas.offsetHeight || 500;
+const orlResources = [
+  // ── Light Pollution Maps ──
+  {
+    title: 'Light Pollution Map (lightpollutionmap.info)',
+    url: 'https://www.lightpollutionmap.info/',
+    description: 'Interactive world light pollution map using NASA Black Marble VIIRS data. Includes sky brightness, aurora forecasts, observatory overlays, and crowdsourced SQM readings.',
+    category: 'Light Pollution',
+    icon: '🗺'
+  },
+  {
+    title: 'Dark Site Finder',
+    url: 'https://darksitefinder.com/map/',
+    description: 'Find the darkest observation sites near you. Overlay shows multiple years of satellite data and marked dark-sky locations.',
+    category: 'Light Pollution',
+    icon: '🌑'
+  },
+  {
+    title: 'Clear Dark Sky — Light Pollution Map',
+    url: 'https://www.cleardarksky.com/maps/lp/large_light_pollution_map.html',
+    description: 'David Lorenz\'s 2022 Light Pollution Atlas. Shows large-scale light pollution across North America and beyond.',
+    category: 'Light Pollution',
+    icon: '🌃'
+  },
+  {
+    title: 'Globe at Night',
+    url: 'https://globeatnight.org/',
+    description: 'International citizen-science campaign that invites anyone to measure night sky brightness and submit readings. A great way to contribute to real light pollution research.',
+    category: 'Light Pollution',
+    icon: '🌐'
+  },
 
-  // Background — ocean-like dark
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, '#040214'); bg.addColorStop(1, '#0a0430');
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  // ── Stargazing & Dark Sky Locations ──
+  {
+    title: 'DarkSky International',
+    url: 'https://darksky.org/',
+    description: 'The leading non-profit protecting the night from light pollution. Home of the official Dark Sky Places certification programme (Reserves, Parks, Sanctuaries).',
+    category: 'Dark Sky',
+    icon: '✨'
+  },
+  {
+    title: 'Dark Sky Map',
+    url: 'https://www.darkskymap.com/nightSkyBrightness',
+    description: 'Find stargazing locations with weather conditions, driving time, parking, and current lunar phase all in one view.',
+    category: 'Dark Sky',
+    icon: '🌌'
+  },
+  {
+    title: 'Go Astronomy — Dark Sky Parks & Places',
+    url: 'https://www.go-astronomy.com/dark-sky-sites.php',
+    description: 'Comprehensive list of DarkSky-certified sanctuaries, reserves, and parks worldwide, with Bortle ratings.',
+    category: 'Dark Sky',
+    icon: '🏕'
+  },
 
-  // Grid lines
-  ctx.strokeStyle = 'rgba(80,40,140,0.2)'; ctx.lineWidth = 1;
-  for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-  for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  // ── Stargazing & Astronomy Tools ──
+  {
+    title: 'Stellarium Web',
+    url: 'https://stellarium-web.org/',
+    description: 'Free, open-source planetarium that shows exactly what the sky looks like from your location right now. Works in-browser with no install.',
+    category: 'Stargazing Tool',
+    icon: '🔭'
+  },
+  {
+    title: 'Heavens-Above',
+    url: 'https://www.heavens-above.com/',
+    description: 'Track the International Space Station, Starlink satellites, iridium flares, and upcoming celestial events for your exact location.',
+    category: 'Stargazing Tool',
+    icon: '🛰'
+  },
+  {
+    title: 'Clear Sky Chart',
+    url: 'https://www.cleardarksky.com/csk/',
+    description: 'At-a-glance 48-hour astronomy weather forecast. Shows cloud cover, transparency, seeing, darkness, and humidity for thousands of observing sites.',
+    category: 'Stargazing Tool',
+    icon: '☁'
+  },
+  {
+    title: 'Time and Date — Night Sky',
+    url: 'https://www.timeanddate.com/astronomy/night/',
+    description: 'Interactive sky map showing which planets, stars, and constellations are visible tonight from your location.',
+    category: 'Stargazing Tool',
+    icon: '⭐'
+  },
+  {
+    title: 'In-The-Sky.org',
+    url: 'https://in-the-sky.org/',
+    description: 'Personalised planetarium with detailed ephemerides, sky charts, and a guide to tonight\'s observing highlights.',
+    category: 'Stargazing Tool',
+    icon: '🌠'
+  },
 
-  // Simulated continents (rough shapes)
-  const continents = [
-    { x: W*0.15, y: H*0.25, rX: 80, rY: 60, color: 'rgba(40,20,80,0.9)' },
-    { x: W*0.38, y: H*0.3,  rX: 130, rY: 80, color: 'rgba(40,20,80,0.9)' },
-    { x: W*0.62, y: H*0.35, rX: 110, rY: 90, color: 'rgba(40,20,80,0.9)' },
-    { x: W*0.75, y: H*0.5,  rX: 70,  rY: 55, color: 'rgba(40,20,80,0.9)' },
-    { x: W*0.5,  y: H*0.65, rX: 50,  rY: 40, color: 'rgba(40,20,80,0.9)' },
-    { x: W*0.22, y: H*0.6,  rX: 90,  rY: 60, color: 'rgba(40,20,80,0.9)' },
-  ];
-  continents.forEach(c => {
-    ctx.beginPath(); ctx.ellipse(c.x, c.y, c.rX, c.rY, 0, 0, Math.PI*2);
-    ctx.fillStyle = c.color; ctx.fill();
-    ctx.strokeStyle = 'rgba(100,60,180,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+  // ── Educational ──
+  {
+    title: 'NASA Astronomy Picture of the Day',
+    url: 'https://apod.nasa.gov/apod/astropix.html',
+    description: 'A new astronomy image every day since 1995, with expert explanations. The definitive daily astronomy showcase.',
+    category: 'Educational',
+    icon: '🖼'
+  },
+  {
+    title: 'NASA Blue Marble Navigator',
+    url: 'https://earthobservatory.nasa.gov/features/BlueMarble',
+    description: 'Satellite maps showing the Earth from space — including nighttime light emissions that visualise light pollution globally.',
+    category: 'Educational',
+    icon: '🌍'
+  },
+  {
+    title: 'ESA — Space Science',
+    url: 'https://www.esa.int/Science_Exploration/Space_Science',
+    description: 'European Space Agency\'s hub for astronomy missions, research articles, and news about space telescopes and exploration.',
+    category: 'Educational',
+    icon: '🚀'
+  },
+  {
+    title: 'Sky & Telescope',
+    url: 'https://skyandtelescope.org/',
+    description: 'Long-running astronomy magazine with tutorials, observing guides, equipment reviews, and current sky events.',
+    category: 'Educational',
+    icon: '📚'
+  },
+  {
+    title: 'EarthSky',
+    url: 'https://earthsky.org/',
+    description: 'Daily updates on astronomy, meteor showers, planet visibility, and the latest space science news written for a general audience.',
+    category: 'Educational',
+    icon: '🌅'
+  },
+
+  // ── Astrophotography ──
+  {
+    title: 'AstroBin',
+    url: 'https://www.astrobin.com/',
+    description: 'The largest community platform for astrophotographers. Browse and share deep-sky, lunar, and solar images with full metadata.',
+    category: 'Astrophotography',
+    icon: '📷'
+  },
+  {
+    title: 'Telescopius',
+    url: 'https://telescopius.com/',
+    description: 'Plan astrophotography and visual observing sessions. Includes planner tools, deep-sky object lists, and community image galleries.',
+    category: 'Astrophotography',
+    icon: '🎯'
+  },
+
+  // ── Community & News ──
+  {
+    title: 'Cloudy Nights',
+    url: 'https://www.cloudynights.com/',
+    description: 'Active community forum for amateur astronomers. Equipment reviews, observing reports, and help from thousands of experienced members.',
+    category: 'Community',
+    icon: '💬'
+  },
+  {
+    title: 'r/Astronomy',
+    url: 'https://www.reddit.com/r/Astronomy/',
+    description: 'Reddit\'s main astronomy community with daily news, questions, photography, and discussion.',
+    category: 'Community',
+    icon: '🗣'
+  },
+];
+
+// All unique categories for the filter chips
+const orlCategories = ['All', ...new Set(orlResources.map(r => r.category))];
+
+// Filter state
+let orlActiveCategory = 'All';
+
+/**
+ * Main render function — called when the user navigates to Resources,
+ * clicks a category chip, or types in the search box.
+ */
+function renderResources() {
+  const grid      = document.getElementById('orlGrid');
+  const filtersEl = document.getElementById('orlFilters');
+  const searchEl  = document.getElementById('orlSearch');
+  if (!grid) return;
+
+  // ── Render filter chips (only needs to happen once) ──
+  if (filtersEl && !filtersEl.children.length) {
+    filtersEl.innerHTML = orlCategories.map(cat => `
+      <button class="orl-chip ${cat === orlActiveCategory ? 'active' : ''}"
+              onclick="setResourceCategory('${cat.replace(/'/g, "\\'")}')">
+        ${cat}
+      </button>
+    `).join('');
+  }
+
+  // ── Apply filters ──
+  const query = (searchEl?.value || '').trim().toLowerCase();
+  const filtered = orlResources.filter(r => {
+    const matchesCat = orlActiveCategory === 'All' || r.category === orlActiveCategory;
+    const matchesQuery = !query
+      || r.title.toLowerCase().includes(query)
+      || r.description.toLowerCase().includes(query)
+      || r.category.toLowerCase().includes(query);
+    return matchesCat && matchesQuery;
   });
 
-  // Pollution hotspots (radial gradients simulating city glow)
-  const hotspots = [
-    { x:W*0.41, y:H*0.25, r:45, bortle:9, label:'London' },
-    { x:W*0.22, y:H*0.32, r:55, bortle:9, label:'New York' },
-    { x:W*0.71, y:H*0.32, r:50, bortle:9, label:'Tokyo' },
-    { x:W*0.65, y:H*0.28, r:40, bortle:8, label:'Beijing' },
-    { x:W*0.18, y:H*0.38, r:35, bortle:8, label:'L.A.' },
-    { x:W*0.43, y:H*0.29, r:30, bortle:7, label:'Paris' },
-    { x:W*0.38, y:H*0.62, r:30, bortle:5, label:'São Paulo' },
-    { x:W*0.12, y:H*0.2,  r:18, bortle:2, label:'Cherry Springs' },
-    { x:W*0.6,  y:H*0.72, r:12, bortle:1, label:'Atacama' },
-    { x:W*0.73, y:H*0.65, r:14, bortle:1, label:'Mauna Kea' },
-  ];
+  // ── Empty state ──
+  if (filtered.length === 0) {
+    grid.innerHTML = `
+      <div class="orl-empty">
+        <div class="orl-empty-icon">🔍</div>
+        <h4>No resources match your search</h4>
+        <p>Try a different keyword or category.</p>
+      </div>`;
+    return;
+  }
 
-  hotspots.forEach(h => {
-    const col = bortleColor(h.bortle);
-    const grad = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, h.r);
-    grad.addColorStop(0, col.replace(')', ',0.9)').replace('rgb','rgba'));
-    grad.addColorStop(0.5, col.replace(')', ',0.4)').replace('rgb','rgba'));
-    grad.addColorStop(1, 'transparent');
-    ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(h.x, h.y, h.r, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = 'rgba(220,200,255,0.8)';
-    ctx.font = '9px Space Mono, monospace';
-    ctx.fillText(h.label, h.x - 16, h.y + h.r + 12);
-  });
-
-  // Click handler
-  canvas.onclick = (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) * (W / rect.width);
-    const my = (e.clientY - rect.top)  * (H / rect.height);
-    let nearest = null, minDist = Infinity;
-    hotspots.forEach(h => {
-      const d = Math.hypot(mx-h.x, my-h.y);
-      if (d < minDist) { minDist = d; nearest = h; }
-    });
-    if (nearest) showBortleCard(nearest);
-  };
+  // ── Render cards ──
+  grid.innerHTML = filtered.map(r => `
+    <a class="orl-card" href="${r.url}" target="_blank" rel="noopener noreferrer">
+      <div class="orl-card-top">
+        <span class="orl-card-icon">${r.icon}</span>
+        <span class="orl-card-tag">${r.category}</span>
+      </div>
+      <h4 class="orl-card-title">${r.title}</h4>
+      <p class="orl-card-desc">${r.description}</p>
+      <div class="orl-card-link">Visit site ↗</div>
+    </a>
+  `).join('');
 }
 
-function bortleColor(b) {
-  const colors = ['','rgb(13,13,43)','rgb(26,26,110)','rgb(44,20,130)','rgb(70,30,160)','rgb(100,40,180)','rgb(140,60,200)','rgb(123,63,190)','rgb(192,132,252)','rgb(240,171,252)'];
-  return colors[b] || 'rgb(80,30,150)';
-}
-
-function showBortleCard(site) {
-  const descs = {
-    1: 'Pristine dark sky. Zodiacal light, gegenschein, and Milky Way structure visible.',
-    2: 'Truly dark sky. Airglow faintly visible on horizon.',
-    3: 'Rural sky. Some light pollution near horizon.',
-    4: 'Rural/Suburban. Milky Way still impressive, some loss of detail.',
-    5: 'Suburban sky. Milky Way washed out near horizon.',
-    6: 'Bright suburban. Only hints of Milky Way visible.',
-    7: 'Suburban/Urban. Background sky is light grey.',
-    8: 'City sky. Sky is orange/grey. Only 5th magnitude stars visible.',
-    9: 'Inner city. Sky is brilliant grey or orange. Only brightest stars visible.',
-  };
-  const labels = {1:'Pristine Dark',2:'Truly Dark',3:'Rural',4:'Rural/Suburban',5:'Suburban',6:'Bright Suburban',7:'Suburban/Urban',8:'City',9:'Inner City'};
-  document.getElementById('bortleScore').textContent = site.bortle;
-  document.getElementById('bortleLabel').textContent = `${site.label} — ${labels[site.bortle]}`;
-  document.getElementById('bortleDesc').textContent  = descs[site.bortle];
-}
-
-function showDarkSite(el) {
-  const bortle = parseInt(el.dataset.bortle);
-  const name   = el.dataset.name;
-  showBortleCard({ bortle, label: name });
-  showToast(`Showing: ${name}`);
-}
-
-function searchLocation() {
-  const q = document.getElementById('mapSearch').value;
-  if (!q) return;
-  showToast(`Searching for "${q}"...`);
-  // Simulate a result
-  setTimeout(() => {
-    const fakeData = { bortle: Math.floor(Math.random()*8)+1, label: q };
-    showBortleCard(fakeData);
-    showToast(`Results for "${q}" loaded`, 'success');
-  }, 800);
+/**
+ * Called when a filter chip is clicked.
+ */
+function setResourceCategory(cat) {
+  orlActiveCategory = cat;
+  // Re-render filter chips to update active state
+  const filtersEl = document.getElementById('orlFilters');
+  if (filtersEl) filtersEl.innerHTML = '';
+  renderResources();
 }
 
 // ===================== EDUCATION ARTICLES =====================
@@ -1118,9 +1235,6 @@ window.addEventListener('resize', () => {
   if (state.currentPage === 'sky-lab') {
     setTimeout(initSkyCanvas, 200);
   }
-  if (state.currentPage === 'map') {
-    setTimeout(initMapCanvas, 200);
-  }
 });
 
 // ===================== LUMINOVA INTERACTIVE PAGE =====================
@@ -1414,4 +1528,3 @@ window.addEventListener('DOMContentLoaded', () => {
   const bar = document.getElementById('lumBattBar');
   if (bar) bar.style.width = '100%';
 });
-

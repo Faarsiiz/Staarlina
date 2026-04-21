@@ -27,7 +27,7 @@
       <li><a href="#home" class="nav-link active" data-page="home">Home</a></li>
       <li><a href="#sky-lab" class="nav-link" data-page="sky-lab">Sky Lab</a></li>
       <li><a href="#lenses" class="nav-link" data-page="lenses">AI Lenses</a></li>
-      <li><a href="#map" class="nav-link" data-page="map">Pollution Map</a></li>
+      <li><a href="#map" class="nav-link" data-page="map">Resources</a></li>
       <li><a href="#education" class="nav-link" data-page="education">Learn</a></li>
       <li><a href="#research" class="nav-link" data-page="research">Research</a></li>
       <li><a href="#goggles" class="nav-link" data-page="goggles">Luminova</a></li>
@@ -311,57 +311,33 @@
     <!-- ===== PAGE: MAP ===== -->
     <section id="map" class="page">
       <div class="page-header">
-        <h2 class="page-title">Light Pollution Map</h2>
-        <p class="page-subtitle">Explore real-time light pollution levels worldwide. Find the darkest skies near you.</p>
+        <h2 class="page-title">Open Resource Library</h2>
+        <p class="page-subtitle">A curated collection of trusted websites, maps, and tools for astronomy and light pollution research.</p>
       </div>
-      <div class="map-layout">
-        <div class="map-card">
-          <div class="map-placeholder" id="mapPlaceholder">
-            <div class="map-overlay-message">
-              <div class="map-icon">🗺</div>
-              <h3>Interactive Light Pollution Map</h3>
-              <p>Enable location access to see local light pollution levels, or browse the global heatmap.</p>
-              <button class="btn-primary" onclick="initMap()">Enable Map & Location</button>
-              <p class="map-note">Uses Bortle Scale (1–9) — darker areas score lower.</p>
-            </div>
-            <div class="map-legend">
-              <div class="legend-item"><span class="leg-dot" style="background:#0d0d2b"></span>Bortle 1 — Pristine Dark</div>
-              <div class="legend-item"><span class="leg-dot" style="background:#1a1a6e"></span>Bortle 2–3 — Rural</div>
-              <div class="legend-item"><span class="leg-dot" style="background:#3d2b8c"></span>Bortle 4–5 — Suburban</div>
-              <div class="legend-item"><span class="leg-dot" style="background:#7b3fbe"></span>Bortle 6–7 — Urban</div>
-              <div class="legend-item"><span class="leg-dot" style="background:#c084fc"></span>Bortle 8 — City</div>
-              <div class="legend-item"><span class="leg-dot" style="background:#f0abfc"></span>Bortle 9 — Inner City</div>
-            </div>
-          </div>
 
-          <!-- Simulated Map Canvas -->
-          <canvas id="mapCanvas" width="800" height="500"></canvas>
-        </div>
-
-        <div class="map-sidebar">
-          <div class="map-search">
-            <input type="text" placeholder="Search location..." id="mapSearch" />
-            <button onclick="searchLocation()">🔍</button>
-          </div>
-          <div class="bortle-card" id="bortleCard">
-            <div class="bortle-score" id="bortleScore">—</div>
-            <div class="bortle-label" id="bortleLabel">Select a location</div>
-            <div class="bortle-desc" id="bortleDesc">Click anywhere on the map to see the Bortle scale rating for that area.</div>
-          </div>
-          <div class="recommended-spots">
-            <h4>Top Dark Sky Sites</h4>
-            <ul id="darkSitesList">
-              <li onclick="showDarkSite(this)" data-bortle="1" data-name="Cherry Springs SP, PA">🏕 Cherry Springs SP, PA<span>Bortle 1</span></li>
-              <li onclick="showDarkSite(this)" data-bortle="1" data-name="Natural Bridges NM, UT">🏕 Natural Bridges NM, UT<span>Bortle 1</span></li>
-              <li onclick="showDarkSite(this)" data-bortle="2" data-name="Mauna Kea, HI">⛰ Mauna Kea, HI<span>Bortle 2</span></li>
-              <li onclick="showDarkSite(this)" data-bortle="2" data-name="Atacama Desert, Chile">🌵 Atacama Desert, Chile<span>Bortle 2</span></li>
-              <li onclick="showDarkSite(this)" data-bortle="3" data-name="Exmoor NP, UK">🌿 Exmoor NP, UK<span>Bortle 3</span></li>
-              <li onclick="showDarkSite(this)" data-bortle="9" data-name="London, UK">🏙 London, UK<span>Bortle 9</span></li>
-              <li onclick="showDarkSite(this)" data-bortle="9" data-name="New York, USA">🏙 New York, USA<span>Bortle 9</span></li>
-            </ul>
-          </div>
+      <!-- Search + filter bar -->
+      <div class="orl-controls">
+        <input
+          type="text"
+          id="orlSearch"
+          class="orl-search"
+          placeholder="🔍 Search resources by name, description, or tag…"
+          oninput="renderResources()"
+        />
+        <div class="orl-filters" id="orlFilters">
+          <!-- filter chips injected by JS -->
         </div>
       </div>
+
+      <!-- Resources grid -->
+      <div class="orl-grid" id="orlGrid">
+        <!-- Cards injected by JS -->
+      </div>
+
+      <p class="orl-footnote">
+        ✦ All resources link to external websites and open in a new tab.
+        Staarlina is not affiliated with these services.
+      </p>
     </section>
 
     <!-- ===== PAGE: EDUCATION ===== -->
@@ -807,7 +783,7 @@
         <div><h5>Explore</h5>
           <a href="#" onclick="navigateTo('sky-lab')">Sky Lab</a>
           <a href="#" onclick="navigateTo('lenses')">AI Lenses</a>
-          <a href="#" onclick="navigateTo('map')">Pollution Map</a>
+          <a href="#" onclick="navigateTo('map')">Resources</a>
         </div>
         <div><h5>Learn</h5>
           <a href="#" onclick="navigateTo('education')">Articles</a>
@@ -830,4 +806,3 @@
   <script src="app.js"></script>
 </body>
 </html>
-

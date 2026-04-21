@@ -38,6 +38,10 @@
   --transition: 0.3s ease;
 }
 
+#starExplorer {
+   display: none;
+}
+
 html { scroll-behavior: smooth; font-size: 16px; }
 
 body {

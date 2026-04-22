@@ -558,13 +558,6 @@ const orlResources = [
     icon: '📍'
   },
   {
-    title: 'Dark Site Finder',
-    url: 'https://darksitefinder.com/map/',
-    description: 'Find the darkest observation sites near you. Overlay shows multiple years of satellite data and marked dark-sky locations.',
-    category: 'Light Pollution',
-    icon: '🌑'
-  },
-  {
     title: 'Clear Dark Sky — Light Pollution Map',
     url: 'https://www.cleardarksky.com/maps/lp/large_light_pollution_map.html',
     description: 'David Lorenz\'s 2022 Light Pollution Atlas. Shows large-scale light pollution across North America and beyond.',

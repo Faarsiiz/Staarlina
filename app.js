@@ -551,13 +551,6 @@ updateHudTime();
 const orlResources = [
   // ── Light Pollution Maps ──
   {
-    title: 'Light Pollution Map (lightpollutionmap.info)',
-    url: 'https://www.lightpollutionmap.info/',
-    description: 'Interactive world light pollution map using NASA Black Marble VIIRS data. Includes sky brightness, aurora forecasts, observatory overlays, and crowdsourced SQM readings.',
-    category: 'Light Pollution',
-    icon: '🗺'
-  },
-  {
     title: 'Light Pollution Map (lightpollutionmap.app)',
     url: 'https://lightpollutionmap.app/',
     description: 'Modern light pollution map with Bortle Scale readings, dark-sky site discovery, estimated visible stars, SQM comparisons, and all-sky skyglow simulations. Built on NOAA VIIRS satellite data.',

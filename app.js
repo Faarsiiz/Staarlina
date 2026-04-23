@@ -15,7 +15,9 @@ const state = {
   user: null,
   snapshots: [],
   customSettings: { blue: 60, contrast: 40, warm: 50 },
+  lensIntensity: 70,              // 0–100, drives the Intensity slider
   compareMode: false,
+  compareLenses: null,            // { a, b } when comparison is active
   mapInitialised: false,
   userLocation: null,
   researchFeed: [],
@@ -34,7 +36,7 @@ function navigateTo(pageId) {
   if (pageId === 'sky-lab') initSkyCanvas();
   if (pageId === 'education') renderArticles('all');
   if (pageId === 'research') renderFeed('recent');
-  if (pageId === 'map') renderResources();
+  if (pageId === 'map') initMapCanvas();
   updateHudTime();
 }
 
@@ -273,23 +275,94 @@ function drawSkyFrame() {
 }
 
 function applyLensOverlayToCanvas(ctx, w, h, lens) {
+  // If comparison mode is active, each lens renders on its own half
+  // of the canvas, redrawn every frame so the split survives the
+  // 60fps animation loop.
+  if (state.compareMode && state.compareLenses) {
+    const { a, b } = state.compareLenses;
+
+    // Left half — lens A
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, w / 2, h);
+    ctx.clip();
+    drawLensTint(ctx, w, h, a);
+    ctx.restore();
+
+    // Right half — lens B
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(w / 2, 0, w / 2, h);
+    ctx.clip();
+    drawLensTint(ctx, w, h, b);
+    ctx.restore();
+
+    // Divider and labels
+    ctx.save();
+    ctx.strokeStyle = 'rgba(168,85,247,0.9)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath();
+    ctx.moveTo(w / 2, 0);
+    ctx.lineTo(w / 2, h);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(200,160,255,0.95)';
+    ctx.font = 'bold 11px Space Mono, monospace';
+    ctx.fillText(getLensName(a) || 'No Lens', 12, 20);
+    ctx.fillText(getLensName(b) || 'No Lens', w / 2 + 10, 20);
+    ctx.restore();
+    return;
+  }
+
+  // Normal single-lens mode
   if (!state.lensActive) return;
+  drawLensTint(ctx, w, h, lens);
+}
+
+/**
+ * Draws a single lens tint over the entire canvas.
+ * The intensity slider (0–100) is mapped to an alpha multiplier
+ * of 0.15 → 3.0 so the effect slides visibly from almost-nothing
+ * to fully saturated. The custom lens additionally uses all three
+ * of its own sliders (blue, contrast, warm).
+ */
+function drawLensTint(ctx, w, h, lens) {
+  if (!lens || lens === 'none') return;
+
+  const intensity = state.lensIntensity / 100;    // 0–1
+  const alphaMul  = 0.15 + intensity * 2.85;       // 0.15 – 3.0
+
   ctx.save();
   if (lens === 'city') {
-    ctx.fillStyle = 'rgba(180, 100, 10, 0.08)';
+    // Amber tint — blue-light cut
+    ctx.fillStyle = `rgba(200, 130, 30, ${Math.min(0.85, 0.22 * alphaMul)})`;
     ctx.fillRect(0, 0, w, h);
   } else if (lens === 'astronomy') {
-    ctx.fillStyle = 'rgba(20, 0, 60, 0.1)';
+    // Deep violet — enhances star contrast
+    ctx.fillStyle = `rgba(40, 10, 120, ${Math.min(0.85, 0.25 * alphaMul)})`;
     ctx.fillRect(0, 0, w, h);
   } else if (lens === 'antiglare') {
-    ctx.fillStyle = 'rgba(0, 20, 40, 0.07)';
+    // Cool blue-grey — reduces halo
+    ctx.fillStyle = `rgba(0, 30, 60, ${Math.min(0.85, 0.20 * alphaMul)})`;
     ctx.fillRect(0, 0, w, h);
   } else if (lens === 'brightness') {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    // Darkening overlay, capped so stars don't vanish
+    ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(0.9, 0.35 * alphaMul)})`;
     ctx.fillRect(0, 0, w, h);
   } else if (lens === 'custom') {
-    const { blue, warm } = state.customSettings;
-    ctx.fillStyle = `rgba(${warm*1.5}, ${60}, ${255 - blue*2}, ${blue * 0.001})`;
+    // Custom lens responds to ALL three sliders plus intensity:
+    //   warm      → red channel (higher = more orange)
+    //   blue      → cuts blue channel (higher = more blue blocked)
+    //   contrast  → base opacity of the tint
+    //   intensity → final multiplier on top of everything
+    const { blue, contrast, warm } = state.customSettings;
+    const r  = Math.min(255, Math.round(80 + warm * 1.8));
+    const g  = Math.round(40 + warm * 0.4);
+    const b  = Math.max(0,  Math.round(220 - blue * 2.2));
+    const baseA = 0.18 + contrast * 0.004;           // 0.18 – 0.58
+    const a  = Math.min(0.9, baseA * alphaMul);
+    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
     ctx.fillRect(0, 0, w, h);
   }
   ctx.restore();
@@ -297,6 +370,15 @@ function applyLensOverlayToCanvas(ctx, w, h, lens) {
 
 // ===================== LENS CONTROL =====================
 function selectLens(lensId, el) {
+  // If the user picks a single lens while comparison is on, exit
+  // comparison cleanly so the two interactions don't conflict.
+  if (state.compareMode) {
+    state.compareMode   = false;
+    state.compareLenses = null;
+    const cp = document.getElementById('comparePanel');
+    if (cp) cp.style.display = 'none';
+  }
+
   state.currentLens = lensId;
   document.querySelectorAll('.lens-card').forEach(c => c.classList.remove('active'));
   if (el) el.classList.add('active');
@@ -336,29 +418,43 @@ function applyLensOverlay(lensId) {
   overlay.style.mixBlendMode = 'normal';
   if (!state.lensActive || lensId === 'none') return;
 
+  const intensity = state.lensIntensity / 100;
+  const m = 0.15 + intensity * 2.85;    // 0.15 – 3.0
+
   const configs = {
-    city:       { bg: 'rgba(200,130,30,0.12)',   blend: 'multiply' },
-    astronomy:  { bg: 'rgba(40, 10,120,0.15)',   blend: 'multiply' },
-    antiglare:  { bg: 'rgba(0,  30, 60,0.1)',    blend: 'multiply' },
-    brightness: { bg: 'rgba(0,   0,  0,0.22)',   blend: 'normal'   },
-    custom: {
-      bg: `rgba(${state.customSettings.warm*1.5},60,${255 - state.customSettings.blue*2},${state.customSettings.blue*0.001})`,
-      blend: 'multiply'
-    },
+    city:       { bg: `rgba(200,130,30, ${Math.min(0.9, 0.22 * m)})`, blend: 'multiply' },
+    astronomy:  { bg: `rgba(40, 10,120, ${Math.min(0.9, 0.25 * m)})`, blend: 'multiply' },
+    antiglare:  { bg: `rgba(0,  30, 60, ${Math.min(0.9, 0.20 * m)})`, blend: 'multiply' },
+    brightness: { bg: `rgba(0,   0,  0, ${Math.min(0.9, 0.35 * m)})`, blend: 'normal'   },
+    custom: (() => {
+      const { blue, contrast, warm } = state.customSettings;
+      const r  = Math.min(255, Math.round(80 + warm * 1.8));
+      const g  = Math.round(40 + warm * 0.4);
+      const b  = Math.max(0,  Math.round(220 - blue * 2.2));
+      const baseA = 0.18 + contrast * 0.004;
+      const a  = Math.min(0.9, baseA * m);
+      return { bg: `rgba(${r}, ${g}, ${b}, ${a})`, blend: 'multiply' };
+    })(),
   };
   const cfg = configs[lensId];
   if (cfg) { overlay.style.background = cfg.bg; overlay.style.mixBlendMode = cfg.blend; }
 }
 
 function updateIntensity(el) {
+  // Store it in state so drawLensTint() and applyLensOverlay() both see it
+  state.lensIntensity = parseInt(el.value);
   document.getElementById('intensityVal').textContent = el.value;
   applyLensOverlay(state.currentLens);
+  if (state.cameraActive) applyFilterToCamera();
 }
 
 function updateCustom(type, el) {
   state.customSettings[type] = parseInt(el.value);
   document.getElementById(`${type}Val`).textContent = el.value;
   applyLensOverlay('custom');
+  // The camera feed needs a refresh too so the custom sliders
+  // update the live video, not just the simulated sky
+  if (state.cameraActive) applyFilterToCamera();
 }
 
 // ===================== CAMERA =====================
@@ -404,19 +500,38 @@ function stopCamera() {
 function applyFilterToCamera() {
   const video = document.getElementById('cameraFeed');
   if (!video) return;
+
+  // Intensity slider maps to a 0–1 strength multiplier that scales
+  // every filter smoothly from neutral (no effect) to full effect.
+  const i = state.lensIntensity / 100;
+
   const filters = {
-    none:       'none',
-    city:       'sepia(0.4) hue-rotate(20deg) saturate(0.7)',
-    astronomy:  'contrast(1.6) brightness(1.15) saturate(0.8)',
-    antiglare:  'brightness(0.85) contrast(1.1)',
-    brightness: 'brightness(0.65) contrast(1.05)',
+    none: () => 'none',
+
+    city: () =>
+      `sepia(${0.6 * i}) hue-rotate(${20 * i}deg) saturate(${1 - 0.5 * i}) brightness(${1 - 0.1 * i})`,
+
+    astronomy: () =>
+      `contrast(${1 + 0.8 * i}) brightness(${1 + 0.25 * i}) saturate(${1 - 0.3 * i})`,
+
+    antiglare: () =>
+      `brightness(${1 - 0.25 * i}) contrast(${1 + 0.15 * i})`,
+
+    brightness: () =>
+      `brightness(${1 - 0.45 * i}) contrast(${1 + 0.08 * i})`,
+
     custom: () => {
       const { blue, contrast, warm } = state.customSettings;
-      return `sepia(${warm/150}) contrast(${1 + contrast/200}) saturate(${1 - blue/250}) brightness(0.9)`;
-    }
+      return `sepia(${(warm / 120) * i}) `
+           + `contrast(${1 + (contrast / 150) * i}) `
+           + `saturate(${1 - (blue / 200) * i}) `
+           + `brightness(${1 - 0.1 * i})`;
+    },
   };
-  const f = filters[state.lensActive ? state.currentLens : 'none'];
-  video.style.filter = typeof f === 'function' ? f() : (state.lensActive ? f : 'none');
+
+  const lens = state.lensActive ? state.currentLens : 'none';
+  const fn   = filters[lens] || filters.none;
+  video.style.filter = fn();
 }
 
 // ===================== SNAPSHOT =====================
@@ -480,29 +595,50 @@ function downloadSnapshot(idx) {
 function toggleLensCompare() {
   state.compareMode = !state.compareMode;
   document.getElementById('comparePanel').style.display = state.compareMode ? 'flex' : 'none';
-  if (state.compareMode) document.getElementById('comparePanel').style.flexDirection = 'column';
+
+  if (state.compareMode) {
+    document.getElementById('comparePanel').style.flexDirection = 'column';
+    // Kick off an initial comparison with whatever the dropdowns say
+    runComparison();
+  } else {
+    // Leaving compare mode — clear the pair and put the overlay back
+    state.compareLenses = null;
+    applyLensOverlay(state.currentLens);
+    if (state.cameraActive) applyFilterToCamera();
+    showToast('Comparison mode off');
+  }
 }
 
 function runComparison() {
   const a = document.getElementById('compareA').value;
   const b = document.getElementById('compareB').value;
+
+  if (a === b) {
+    showToast('Pick two different lenses to compare.', 'error');
+    return;
+  }
+
+  // Store the pair so drawSkyFrame() → applyLensOverlayToCanvas()
+  // redraws the split on every frame. The old code drew once and
+  // the animation loop instantly overwrote it.
+  state.compareLenses = { a, b };
+  state.compareMode   = true;
+  state.lensActive    = true;
+
+  // Sync the lens-power toggle so the UI matches what's actually on
+  const lensToggle = document.getElementById('lensToggle');
+  if (lensToggle) lensToggle.checked = true;
+
+  // Clear the single-lens CSS overlay so it doesn't cover the split
+  const overlay = document.getElementById('lensOverlay');
+  if (overlay) {
+    overlay.style.background   = 'none';
+    overlay.style.mixBlendMode = 'normal';
+  }
+
   const aName = getLensName(a) || 'No Lens';
   const bName = getLensName(b) || 'No Lens';
-  showToast(`Comparing ${aName} vs ${bName}`);
-
-  // Visual split on canvas — left half lens A, right half lens B
-  if (skyCtx) {
-    const w = skyCanvas.width, h = skyCanvas.height;
-    // Draw comparison overlay
-    skyCtx.save();
-    skyCtx.fillStyle = 'rgba(255,255,255,0.08)';
-    skyCtx.fillRect(w/2, 0, 1, h);
-    skyCtx.fillStyle = 'rgba(200,160,255,0.8)';
-    skyCtx.font = '11px Space Mono, monospace';
-    skyCtx.fillText(aName, 12, h - 12);
-    skyCtx.fillText(bName, w/2 + 8, h - 12);
-    skyCtx.restore();
-  }
+  showToast(`Comparing:  ${aName}  ↔  ${bName}`);
 }
 
 // ===================== LOCATION =====================
@@ -543,236 +679,126 @@ function updateHudTime() {
 setInterval(updateHudTime, 30000);
 updateHudTime();
 
-// ===================== OPEN RESOURCE LIBRARY =====================
-// A curated list of trusted external astronomy & light pollution sites.
-// To add, remove, or edit a resource, just modify this array — no
-// database or backend setup needed.
-
-const orlResources = [
-  // ── Light Pollution Maps ──
-  {
-    title: 'Light Pollution Map (lightpollutionmap.app)',
-    url: 'https://lightpollutionmap.app/',
-    description: 'Modern light pollution map with Bortle Scale readings, dark-sky site discovery, estimated visible stars, SQM comparisons, and all-sky skyglow simulations. Built on NOAA VIIRS satellite data.',
-    category: 'Light Pollution',
-    icon: '📍'
-  },
-  {
-    title: 'Clear Dark Sky — Light Pollution Map',
-    url: 'https://www.cleardarksky.com/maps/lp/large_light_pollution_map.html',
-    description: 'David Lorenz\'s 2022 Light Pollution Atlas. Shows large-scale light pollution across North America and beyond.',
-    category: 'Light Pollution',
-    icon: '🌃'
-  },
-  {
-    title: 'Globe at Night',
-    url: 'https://globeatnight.org/',
-    description: 'International citizen-science campaign that invites anyone to measure night sky brightness and submit readings. A great way to contribute to real light pollution research.',
-    category: 'Light Pollution',
-    icon: '🌐'
-  },
-
-  // ── Stargazing & Dark Sky Locations ──
-  {
-    title: 'DarkSky International',
-    url: 'https://darksky.org/',
-    description: 'The leading non-profit protecting the night from light pollution. Home of the official Dark Sky Places certification programme (Reserves, Parks, Sanctuaries).',
-    category: 'Dark Sky',
-    icon: '✨'
-  },
-  {
-    title: 'Dark Sky Map',
-    url: 'https://www.darkskymap.com/nightSkyBrightness',
-    description: 'Find stargazing locations with weather conditions, driving time, parking, and current lunar phase all in one view.',
-    category: 'Dark Sky',
-    icon: '🌌'
-  },
-  {
-    title: 'Go Astronomy — Dark Sky Parks & Places',
-    url: 'https://www.go-astronomy.com/dark-sky-sites.php',
-    description: 'Comprehensive list of DarkSky-certified sanctuaries, reserves, and parks worldwide, with Bortle ratings.',
-    category: 'Dark Sky',
-    icon: '🏕'
-  },
-
-  // ── Stargazing & Astronomy Tools ──
-  {
-    title: 'Stellarium Web',
-    url: 'https://stellarium-web.org/',
-    description: 'Free, open-source planetarium that shows exactly what the sky looks like from your location right now. Works in-browser with no install.',
-    category: 'Stargazing Tool',
-    icon: '🔭'
-  },
-  {
-    title: 'Heavens-Above',
-    url: 'https://www.heavens-above.com/',
-    description: 'Track the International Space Station, Starlink satellites, iridium flares, and upcoming celestial events for your exact location.',
-    category: 'Stargazing Tool',
-    icon: '🛰'
-  },
-  {
-    title: 'Clear Sky Chart',
-    url: 'https://www.cleardarksky.com/csk/',
-    description: 'At-a-glance 48-hour astronomy weather forecast. Shows cloud cover, transparency, seeing, darkness, and humidity for thousands of observing sites.',
-    category: 'Stargazing Tool',
-    icon: '☁'
-  },
-  {
-    title: 'Time and Date — Night Sky',
-    url: 'https://www.timeanddate.com/astronomy/night/',
-    description: 'Interactive sky map showing which planets, stars, and constellations are visible tonight from your location.',
-    category: 'Stargazing Tool',
-    icon: '⭐'
-  },
-  {
-    title: 'In-The-Sky.org',
-    url: 'https://in-the-sky.org/',
-    description: 'Personalised planetarium with detailed ephemerides, sky charts, and a guide to tonight\'s observing highlights.',
-    category: 'Stargazing Tool',
-    icon: '🌠'
-  },
-
-  // ── Educational ──
-  {
-    title: 'NASA Astronomy Picture of the Day',
-    url: 'https://apod.nasa.gov/apod/astropix.html',
-    description: 'A new astronomy image every day since 1995, with expert explanations. The definitive daily astronomy showcase.',
-    category: 'Educational',
-    icon: '🖼'
-  },
-  {
-    title: 'NASA Blue Marble Navigator',
-    url: 'https://earthobservatory.nasa.gov/features/BlueMarble',
-    description: 'Satellite maps showing the Earth from space — including nighttime light emissions that visualise light pollution globally.',
-    category: 'Educational',
-    icon: '🌍'
-  },
-  {
-    title: 'ESA — Space Science',
-    url: 'https://www.esa.int/Science_Exploration/Space_Science',
-    description: 'European Space Agency\'s hub for astronomy missions, research articles, and news about space telescopes and exploration.',
-    category: 'Educational',
-    icon: '🚀'
-  },
-  {
-    title: 'Sky & Telescope',
-    url: 'https://skyandtelescope.org/',
-    description: 'Long-running astronomy magazine with tutorials, observing guides, equipment reviews, and current sky events.',
-    category: 'Educational',
-    icon: '📚'
-  },
-  {
-    title: 'EarthSky',
-    url: 'https://earthsky.org/',
-    description: 'Daily updates on astronomy, meteor showers, planet visibility, and the latest space science news written for a general audience.',
-    category: 'Educational',
-    icon: '🌅'
-  },
-
-  // ── Astrophotography ──
-  {
-    title: 'AstroBin',
-    url: 'https://www.astrobin.com/',
-    description: 'The largest community platform for astrophotographers. Browse and share deep-sky, lunar, and solar images with full metadata.',
-    category: 'Astrophotography',
-    icon: '📷'
-  },
-  {
-    title: 'Telescopius',
-    url: 'https://telescopius.com/',
-    description: 'Plan astrophotography and visual observing sessions. Includes planner tools, deep-sky object lists, and community image galleries.',
-    category: 'Astrophotography',
-    icon: '🎯'
-  },
-
-  // ── Community & News ──
-  {
-    title: 'Cloudy Nights',
-    url: 'https://www.cloudynights.com/',
-    description: 'Active community forum for amateur astronomers. Equipment reviews, observing reports, and help from thousands of experienced members.',
-    category: 'Community',
-    icon: '💬'
-  },
-  {
-    title: 'r/Astronomy',
-    url: 'https://www.reddit.com/r/Astronomy/',
-    description: 'Reddit\'s main astronomy community with daily news, questions, photography, and discussion.',
-    category: 'Community',
-    icon: '🗣'
-  },
-];
-
-// All unique categories for the filter chips
-const orlCategories = ['All', ...new Set(orlResources.map(r => r.category))];
-
-// Filter state
-let orlActiveCategory = 'All';
-
-/**
- * Main render function — called when the user navigates to Resources,
- * clicks a category chip, or types in the search box.
- */
-function renderResources() {
-  const grid      = document.getElementById('orlGrid');
-  const filtersEl = document.getElementById('orlFilters');
-  const searchEl  = document.getElementById('orlSearch');
-  if (!grid) return;
-
-  // ── Render filter chips (only needs to happen once) ──
-  if (filtersEl && !filtersEl.children.length) {
-    filtersEl.innerHTML = orlCategories.map(cat => `
-      <button class="orl-chip ${cat === orlActiveCategory ? 'active' : ''}"
-              onclick="setResourceCategory('${cat.replace(/'/g, "\\'")}')">
-        ${cat}
-      </button>
-    `).join('');
-  }
-
-  // ── Apply filters ──
-  const query = (searchEl?.value || '').trim().toLowerCase();
-  const filtered = orlResources.filter(r => {
-    const matchesCat = orlActiveCategory === 'All' || r.category === orlActiveCategory;
-    const matchesQuery = !query
-      || r.title.toLowerCase().includes(query)
-      || r.description.toLowerCase().includes(query)
-      || r.category.toLowerCase().includes(query);
-    return matchesCat && matchesQuery;
-  });
-
-  // ── Empty state ──
-  if (filtered.length === 0) {
-    grid.innerHTML = `
-      <div class="orl-empty">
-        <div class="orl-empty-icon">🔍</div>
-        <h4>No resources match your search</h4>
-        <p>Try a different keyword or category.</p>
-      </div>`;
-    return;
-  }
-
-  // ── Render cards ──
-  grid.innerHTML = filtered.map(r => `
-    <a class="orl-card" href="${r.url}" target="_blank" rel="noopener noreferrer">
-      <div class="orl-card-top">
-        <span class="orl-card-icon">${r.icon}</span>
-        <span class="orl-card-tag">${r.category}</span>
-      </div>
-      <h4 class="orl-card-title">${r.title}</h4>
-      <p class="orl-card-desc">${r.description}</p>
-      <div class="orl-card-link">Visit site ↗</div>
-    </a>
-  `).join('');
+// ===================== MAP =====================
+function initMap() {
+  document.getElementById('mapPlaceholder').classList.add('hidden');
+  state.mapInitialised = true;
+  requestLocation();
+  initMapCanvas();
 }
 
-/**
- * Called when a filter chip is clicked.
- */
-function setResourceCategory(cat) {
-  orlActiveCategory = cat;
-  // Re-render filter chips to update active state
-  const filtersEl = document.getElementById('orlFilters');
-  if (filtersEl) filtersEl.innerHTML = '';
-  renderResources();
+function initMapCanvas() {
+  const canvas = document.getElementById('mapCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width  = canvas.offsetWidth  || 800;
+  const H = canvas.height = canvas.offsetHeight || 500;
+
+  // Background — ocean-like dark
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#040214'); bg.addColorStop(1, '#0a0430');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(80,40,140,0.2)'; ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+  // Simulated continents (rough shapes)
+  const continents = [
+    { x: W*0.15, y: H*0.25, rX: 80, rY: 60, color: 'rgba(40,20,80,0.9)' },
+    { x: W*0.38, y: H*0.3,  rX: 130, rY: 80, color: 'rgba(40,20,80,0.9)' },
+    { x: W*0.62, y: H*0.35, rX: 110, rY: 90, color: 'rgba(40,20,80,0.9)' },
+    { x: W*0.75, y: H*0.5,  rX: 70,  rY: 55, color: 'rgba(40,20,80,0.9)' },
+    { x: W*0.5,  y: H*0.65, rX: 50,  rY: 40, color: 'rgba(40,20,80,0.9)' },
+    { x: W*0.22, y: H*0.6,  rX: 90,  rY: 60, color: 'rgba(40,20,80,0.9)' },
+  ];
+  continents.forEach(c => {
+    ctx.beginPath(); ctx.ellipse(c.x, c.y, c.rX, c.rY, 0, 0, Math.PI*2);
+    ctx.fillStyle = c.color; ctx.fill();
+    ctx.strokeStyle = 'rgba(100,60,180,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+  });
+
+  // Pollution hotspots (radial gradients simulating city glow)
+  const hotspots = [
+    { x:W*0.41, y:H*0.25, r:45, bortle:9, label:'London' },
+    { x:W*0.22, y:H*0.32, r:55, bortle:9, label:'New York' },
+    { x:W*0.71, y:H*0.32, r:50, bortle:9, label:'Tokyo' },
+    { x:W*0.65, y:H*0.28, r:40, bortle:8, label:'Beijing' },
+    { x:W*0.18, y:H*0.38, r:35, bortle:8, label:'L.A.' },
+    { x:W*0.43, y:H*0.29, r:30, bortle:7, label:'Paris' },
+    { x:W*0.38, y:H*0.62, r:30, bortle:5, label:'São Paulo' },
+    { x:W*0.12, y:H*0.2,  r:18, bortle:2, label:'Cherry Springs' },
+    { x:W*0.6,  y:H*0.72, r:12, bortle:1, label:'Atacama' },
+    { x:W*0.73, y:H*0.65, r:14, bortle:1, label:'Mauna Kea' },
+  ];
+
+  hotspots.forEach(h => {
+    const col = bortleColor(h.bortle);
+    const grad = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, h.r);
+    grad.addColorStop(0, col.replace(')', ',0.9)').replace('rgb','rgba'));
+    grad.addColorStop(0.5, col.replace(')', ',0.4)').replace('rgb','rgba'));
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(h.x, h.y, h.r, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(220,200,255,0.8)';
+    ctx.font = '9px Space Mono, monospace';
+    ctx.fillText(h.label, h.x - 16, h.y + h.r + 12);
+  });
+
+  // Click handler
+  canvas.onclick = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (W / rect.width);
+    const my = (e.clientY - rect.top)  * (H / rect.height);
+    let nearest = null, minDist = Infinity;
+    hotspots.forEach(h => {
+      const d = Math.hypot(mx-h.x, my-h.y);
+      if (d < minDist) { minDist = d; nearest = h; }
+    });
+    if (nearest) showBortleCard(nearest);
+  };
+}
+
+function bortleColor(b) {
+  const colors = ['','rgb(13,13,43)','rgb(26,26,110)','rgb(44,20,130)','rgb(70,30,160)','rgb(100,40,180)','rgb(140,60,200)','rgb(123,63,190)','rgb(192,132,252)','rgb(240,171,252)'];
+  return colors[b] || 'rgb(80,30,150)';
+}
+
+function showBortleCard(site) {
+  const descs = {
+    1: 'Pristine dark sky. Zodiacal light, gegenschein, and Milky Way structure visible.',
+    2: 'Truly dark sky. Airglow faintly visible on horizon.',
+    3: 'Rural sky. Some light pollution near horizon.',
+    4: 'Rural/Suburban. Milky Way still impressive, some loss of detail.',
+    5: 'Suburban sky. Milky Way washed out near horizon.',
+    6: 'Bright suburban. Only hints of Milky Way visible.',
+    7: 'Suburban/Urban. Background sky is light grey.',
+    8: 'City sky. Sky is orange/grey. Only 5th magnitude stars visible.',
+    9: 'Inner city. Sky is brilliant grey or orange. Only brightest stars visible.',
+  };
+  const labels = {1:'Pristine Dark',2:'Truly Dark',3:'Rural',4:'Rural/Suburban',5:'Suburban',6:'Bright Suburban',7:'Suburban/Urban',8:'City',9:'Inner City'};
+  document.getElementById('bortleScore').textContent = site.bortle;
+  document.getElementById('bortleLabel').textContent = `${site.label} — ${labels[site.bortle]}`;
+  document.getElementById('bortleDesc').textContent  = descs[site.bortle];
+}
+
+function showDarkSite(el) {
+  const bortle = parseInt(el.dataset.bortle);
+  const name   = el.dataset.name;
+  showBortleCard({ bortle, label: name });
+  showToast(`Showing: ${name}`);
+}
+
+function searchLocation() {
+  const q = document.getElementById('mapSearch').value;
+  if (!q) return;
+  showToast(`Searching for "${q}"...`);
+  // Simulate a result
+  setTimeout(() => {
+    const fakeData = { bortle: Math.floor(Math.random()*8)+1, label: q };
+    showBortleCard(fakeData);
+    showToast(`Results for "${q}" loaded`, 'success');
+  }, 800);
 }
 
 // ===================== EDUCATION ARTICLES =====================
@@ -826,81 +852,36 @@ function closeArticle() {
 }
 
 // ===================== RESEARCH FEED =====================
-let currentFeedFilter = 'recent';
+const sampleFeed = [
+  { id:1, title:'Milky Way Visibility — East Sussex Countryside', location:'East Sussex, UK', bortle:3, lens:'Astronomy Lens', date:'2 days ago', user:'@astro_sarah', notes:'Incredible transparency. M31 visible naked eye. Used Astronomy Lens to pull out Orion Nebula detail.', upvotes:42 },
+  { id:2, title:'Downtown Manchester Observation Test', location:'Manchester, UK', bortle:8, lens:'City Lens', date:'5 days ago', user:'@urbangazer_mcr', notes:'City Lens dramatically reduced LED glare from Piccadilly. Managed to see Jupiter and a handful of bright stars.', upvotes:31 },
+  { id:3, title:'Atacama Desert Baseline Reading', location:'Atacama, Chile', bortle:1, lens:'No Lens', date:'1 week ago', user:'@chile_observer', notes:'Pristine sky, no lens needed. Zodiacal light and gegenschein both clearly visible. Milky Way casts a shadow.', upvotes:89 },
+  { id:4, title:'Cherry Springs State Park — Family Night', location:'Pennsylvania, USA', bortle:1, lens:'Astronomy Lens', date:'2 weeks ago', user:'@pa_starparty', notes:'Amazing dark sky event. Kids saw the Milky Way for the first time. Used Astronomy Lens for star cluster detail.', upvotes:67 },
+  { id:5, title:'Anti-Glare Lens Test — Suburban London', location:'Croydon, UK', bortle:7, lens:'Anti-Glare Lens', date:'3 weeks ago', user:'@south_london_sky', notes:'Anti-Glare lens effectively neutralised the fluorescent lamp halos. Better than expected for suburban conditions.', upvotes:25 },
+];
 
-async function renderFeed(filter) {
-  currentFeedFilter = filter;
+function renderFeed(filter) {
   const list = document.getElementById('feedList');
   if (!list) return;
-
-  list.innerHTML = '<div class="feed-loading">Loading observations...</div>';
-
-  let query = supabaseDB
-    .from('observations_with_votes')
-    .select('*');
-
-  if (filter === 'popular') {
-    query = query.order('score', { ascending: false });
-  } else if (filter === 'dark') {
-    query = query.order('bortle', { ascending: true });
-  } else {
-    query = query.order('created_at', { ascending: false });
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    list.innerHTML = '<div class="feed-loading">Failed to load observations.</div>';
-    showToast('Could not load observations', 'error');
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    list.innerHTML = '<div class="feed-loading">No observations yet. Be the first to submit one!</div>';
-    return;
-  }
-
-  // Fetch current user's votes so we can highlight active vote buttons
-  let userVotes = {};
-  if (state.user) {
-    const { data: votes } = await supabaseDB
-      .from('observation_votes')
-      .select('observation_id, vote')
-      .eq('user_id', state.user.id);
-    if (votes) votes.forEach(v => { userVotes[v.observation_id] = v.vote; });
-  }
-
-  list.innerHTML = data.map(f => {
-    const uv = userVotes[f.id] ?? 0;
-    const date = new Date(f.created_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
-    const username = '@' + (f.display_name || 'observer').replace(/\s/g, '_').toLowerCase();
-    const imageHtml = f.image_url
-      ? `<img src="${f.image_url}" class="feed-entry-img" alt="Observation image" onclick="openLightbox(event, '${f.image_url}')" />`
-      : '';
-    return `
-      <div class="feed-entry" data-id="${f.id}">
-        ${imageHtml}
-        <div class="feed-entry-body">
-          <div class="feed-entry-header">
-            <h4>${escapeHtml(f.title)}</h4>
-            <span class="feed-bortle">Bortle ${f.bortle}</span>
-          </div>
-          <p>${escapeHtml(f.notes || '')}</p>
-          <div class="feed-meta">
-            <span>📍 ${escapeHtml(f.location)}</span>
-            <span>🔬 ${escapeHtml(f.lens)}</span>
-            <span>👤 ${escapeHtml(username)}</span>
-            <span>🕐 ${date}</span>
-          </div>
-          <div class="feed-votes">
-            <button class="vote-btn upvote ${uv === 1 ? 'active' : ''}" onclick="castVote('${f.id}', 1)" aria-label="Upvote">▲</button>
-            <span class="vote-score">${f.score}</span>
-            <button class="vote-btn downvote ${uv === -1 ? 'active' : ''}" onclick="castVote('${f.id}', -1)" aria-label="Downvote">▼</button>
-          </div>
-        </div>
+  let data = [...sampleFeed];
+  if (filter === 'popular') data.sort((a,b) => b.upvotes - a.upvotes);
+  else if (filter === 'dark')   data.sort((a,b) => a.bortle - b.bortle);
+  list.innerHTML = data.map(f => `
+    <div class="feed-entry">
+      <div class="feed-entry-header">
+        <h4>${f.title}</h4>
+        <span class="feed-bortle">Bortle ${f.bortle}</span>
       </div>
-    `;
-  }).join('');
+      <p>${f.notes}</p>
+      <div class="feed-meta">
+        <span>📍 ${f.location}</span>
+        <span>🔬 ${f.lens}</span>
+        <span>👤 ${f.user}</span>
+        <span>🕐 ${f.date}</span>
+        <span>▲ ${f.upvotes}</span>
+      </div>
+    </div>
+  `).join('');
 }
 
 function filterFeed(filter, btn) {
@@ -909,181 +890,43 @@ function filterFeed(filter, btn) {
   renderFeed(filter);
 }
 
-async function castVote(observationId, value) {
-  if (!state.user) { showToast('Sign in to vote', 'error'); openAuth(); return; }
-
-  // Check existing vote
-  const { data: existing } = await supabaseDB
-    .from('observation_votes')
-    .select('vote')
-    .eq('observation_id', observationId)
-    .eq('user_id', state.user.id)
-    .maybeSingle();
-
-  if (existing?.vote === value) {
-    // Clicking the same button again removes the vote
-    await supabaseDB
-      .from('observation_votes')
-      .delete()
-      .eq('observation_id', observationId)
-      .eq('user_id', state.user.id);
-  } else {
-    // Upsert handles both new vote and switching between up/down
-    await supabaseDB
-      .from('observation_votes')
-      .upsert({ observation_id: observationId, user_id: state.user.id, vote: value });
-  }
-
-  renderFeed(currentFeedFilter);
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function openLightbox(e, url) {
-  e.stopPropagation();
-  document.getElementById('lightboxImg').src = url;
-  document.getElementById('imgLightbox').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-
-function closeLightbox() {
-  document.getElementById('imgLightbox').classList.remove('open');
-  document.getElementById('lightboxImg').src = '';
-  document.body.style.overflow = '';
-}
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    closeLightbox();
-    closeArticle();
-    closeAuth();
-  }
-});
-
 // ===================== RESEARCH FORM =====================
 function previewImage(input) {
   if (input.files && input.files[0]) {
     const reader = new FileReader();
     reader.onload = e => {
-      document.getElementById('imagePreview').src = e.target.result;
-      document.getElementById('dropZonePrompt').style.display = 'none';
-      document.getElementById('dropZonePreview').style.display = 'flex';
+      const img = document.getElementById('imagePreview');
+      img.src = e.target.result;
+      img.style.display = 'block';
     };
     reader.readAsDataURL(input.files[0]);
   }
 }
 
-function removeImage(e) {
-  e.stopPropagation(); // prevent drop zone click opening file picker
-  document.getElementById('resImage').value = '';
-  document.getElementById('imagePreview').src = '';
-  document.getElementById('dropZonePreview').style.display = 'none';
-  document.getElementById('dropZonePrompt').style.display = 'flex';
-}
-
-async function submitResearch() {
+function submitResearch() {
   const title    = document.getElementById('resTitle').value.trim();
   const location = document.getElementById('resLocation').value.trim();
   const notes    = document.getElementById('resNotes').value.trim();
-  const datetime = document.getElementById('resDatetime').value;
-  const bortle   = parseInt(document.getElementById('resBortle').value);
-  const lens     = document.getElementById('resLens').value;
-  const imageFile = document.getElementById('resImage').files[0];
-
   if (!title || !location) { showToast('Please fill in title and location', 'error'); return; }
   if (!state.user) { showToast('Please sign in to submit research', 'error'); openAuth(); return; }
 
-  const submitBtn = document.querySelector('#research .btn-primary[onclick="submitResearch()"]');
-  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting…'; }
-
-  let image_url = null;
-
-  if (imageFile) {
-    const ext = imageFile.name.split('.').pop();
-    const path = `${state.user.id}/${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabaseDB.storage
-      .from('observation-images')
-      .upload(path, imageFile, { contentType: imageFile.type });
-
-    if (uploadError) {
-      showToast('Image upload failed: ' + uploadError.message, 'error');
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Observation'; }
-      return;
-    }
-
-    const { data: urlData } = supabaseDB.storage
-      .from('observation-images')
-      .getPublicUrl(path);
-    image_url = urlData.publicUrl;
-  }
-
-  const { error } = await supabaseDB.from('observations').insert({
-    user_id:     state.user.id,
-    title,
-    location,
-    observed_at: datetime ? new Date(datetime).toISOString() : new Date().toISOString(),
-    lens,
-    bortle,
-    notes:       notes || null,
-    image_url,
-  });
-
-  if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Observation'; }
-
-  if (error) {
-    showToast('Submission failed: ' + error.message, 'error');
-    return;
-  }
-
+  const newEntry = {
+    id: sampleFeed.length + 1,
+    title, location,
+    bortle: parseInt(document.getElementById('resBortle').value) || 5,
+    lens: document.getElementById('resLens').value,
+    date: 'Just now',
+    user: `@${state.user.name.replace(/\s/g,'_').toLowerCase()}`,
+    notes: notes || 'Observation submitted via Staarlina.',
+    upvotes: 0,
+  };
+  sampleFeed.unshift(newEntry);
   showToast('Observation submitted! Thank you for contributing.', 'success');
   document.getElementById('resTitle').value = '';
   document.getElementById('resLocation').value = '';
   document.getElementById('resNotes').value = '';
-  document.getElementById('resImage').value = '';
-  document.getElementById('imagePreview').src = '';
-  document.getElementById('dropZonePreview').style.display = 'none';
-  document.getElementById('dropZonePrompt').style.display = 'flex';
   renderFeed('recent');
 }
-
-// ===================== SUPABASE =====================
-const SUPABASE_URL  = 'https://lngtgjsxpsmqbaxudmmw.supabase.co';
-const SUPABASE_ANON = 'sb_publishable_-rWV5BTBjx8eXL4vuCFPmg_PyQt5wBl';
-const supabaseDB = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-
-// Sync Supabase auth state into local state and update UI
-function syncAuthState(supabaseUser) {
-  if (supabaseUser) {
-    const displayName = supabaseUser.user_metadata?.full_name
-      || supabaseUser.email.split('@')[0];
-    state.user = {
-      id:    supabaseUser.id,
-      name:  displayName,
-      email: supabaseUser.email,
-    };
-    document.getElementById('loginBtn').textContent = `👤 ${displayName.split(' ')[0]}`;
-  } else {
-    state.user = null;
-    document.getElementById('loginBtn').textContent = 'Sign In';
-  }
-}
-
-// Listen for auth changes (login, logout, token refresh, page reload)
-supabaseDB.auth.onAuthStateChange((_event, session) => {
-  syncAuthState(session?.user ?? null);
-});
-
-// Restore session on page load
-(async () => {
-  const { data: { session } } = await supabaseDB.auth.getSession();
-  syncAuthState(session?.user ?? null);
-})();
 
 // ===================== AUTH =====================
 function openAuth() {
@@ -1102,52 +945,47 @@ document.getElementById('loginBtn').addEventListener('click', () => {
 function switchAuthTab(tab, btn) {
   document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('loginForm').style.display    = tab === 'login' ? 'flex' : 'none';
-  document.getElementById('registerForm').style.display = tab === 'register' ? 'flex' : 'none';
+  document.getElementById('loginForm').style.display    = tab === 'login' ? 'block' : 'none';
+  document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
 }
 
-async function manualLogin() {
+function manualLogin() {
   const email = document.getElementById('authEmail').value.trim();
   const pass  = document.getElementById('authPassword').value;
   if (!email || !pass) { showToast('Please fill in all fields', 'error'); return; }
-
-  const { error } = await supabaseDB.auth.signInWithPassword({ email, password: pass });
-  if (error) {
-    showToast(error.message, 'error');
-  } else {
-    closeAuth();
-    showToast(`Welcome back!`, 'success');
-  }
+  const name = email.split('@')[0];
+  loginSuccess({ name, email, provider: 'email' });
 }
 
-async function registerUser() {
+function registerUser() {
   const name  = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim();
   const pass  = document.getElementById('regPassword').value;
-  const role  = document.getElementById('regRole').value;
   if (!name || !email || !pass) { showToast('Please fill in all fields', 'error'); return; }
-
-  const { error } = await supabaseDB.auth.signUp({
-    email,
-    password: pass,
-    options: { data: { full_name: name, role } },
-  });
-  if (error) {
-    showToast(error.message, 'error');
-  } else {
-    closeAuth();
-    showToast(`Account created! Check your email to confirm.`, 'success');
-  }
+  loginSuccess({ name, email, provider: 'email', role: document.getElementById('regRole').value });
 }
 
-async function logoutUser() {
-  await supabaseDB.auth.signOut();
+function socialLogin(provider) {
+  const names = { Google:'Sky Explorer', Apple:'Star Watcher', Yahoo:'Cosmos Gazer' };
+  loginSuccess({ name: names[provider], email:`user@${provider.toLowerCase()}.com`, provider });
+}
+
+function loginSuccess(user) {
+  state.user = user;
+  document.getElementById('loginBtn').textContent = `👤 ${user.name.split(' ')[0]}`;
+  closeAuth();
+  showToast(`Welcome, ${user.name}!`, 'success');
+}
+
+function logoutUser() {
+  state.user = null;
+  document.getElementById('loginBtn').textContent = 'Sign In';
   showToast('Signed out');
 }
 
 // ===================== LANGUAGE =====================
 const translations = {
-  en: { nav_home:'Home', nav_skylab:'Sky Lab', nav_lenses:'AI Lenses', nav_map:'Pollution Map', nav_learn:'Learn', nav_research:'Research', nav_goggles:'Luminova' },
+  en: { nav_home:'Home', nav_skylab:'Sky Lab', nav_lenses:'AI Lenses', nav_map:'Pollution Map', nav_learn:'Learn', nav_research:'Research', nav_goggles:'Galactic Goggles' },
   es: { nav_home:'Inicio', nav_skylab:'Lab del Cielo', nav_lenses:'Lentes IA', nav_map:'Mapa de Contaminación', nav_learn:'Aprender', nav_research:'Investigación', nav_goggles:'Gafas Galácticas' },
   fr: { nav_home:'Accueil', nav_skylab:'Labo Ciel', nav_lenses:'Lentilles IA', nav_map:'Carte de Pollution', nav_learn:'Apprendre', nav_research:'Recherche', nav_goggles:'Lunettes Galactiques' },
   de: { nav_home:'Startseite', nav_skylab:'Himmelslabor', nav_lenses:'KI-Linsen', nav_map:'Verschmutzungskarte', nav_learn:'Lernen', nav_research:'Forschung', nav_goggles:'Galaktische Brillen' },
@@ -1228,296 +1066,7 @@ window.addEventListener('resize', () => {
   if (state.currentPage === 'sky-lab') {
     setTimeout(initSkyCanvas, 200);
   }
-});
-
-// ===================== LUMINOVA INTERACTIVE PAGE =====================
-
-// Hotspot info panel switcher
-function selectHotspot(infoId, btn) {
-  // Reset all hotspots
-  document.querySelectorAll('.lum-hotspot').forEach(h => h.classList.remove('active'));
-  // Hide all detail panels
-  document.querySelectorAll('.lum-info-detail').forEach(d => d.style.display = 'none');
-  document.getElementById('lum-info-default').style.display = 'none';
-
-  // Activate clicked hotspot
-  btn.classList.add('active');
-
-  // Show matching detail panel
-  const panel = document.getElementById('info-' + infoId);
-  if (panel) {
-    panel.style.display = 'block';
-    panel.style.animation = 'fadeInUp 0.35s ease';
+  if (state.currentPage === 'map') {
+    setTimeout(initMapCanvas, 200);
   }
-
-  // Animate image glow based on hotspot
-  const img = document.getElementById('lumProductImg');
-  const glowMap = {
-    'ai-chip':  'brightness(1.1) saturate(1.2) hue-rotate(20deg)',
-    'lens-r':   'brightness(1.15) saturate(1.3) hue-rotate(-10deg)',
-    'lens-l':   'brightness(1.1) saturate(1.1) hue-rotate(30deg)',
-    'battery':  'brightness(1.05) saturate(1.0)',
-    'camera':   'brightness(1.2) saturate(1.15) hue-rotate(-5deg)',
-  };
-  if (img) img.style.filter = glowMap[infoId] || 'brightness(1.05)';
-}
-
-// Lens color preview in hotspot panel
-function previewLensColor(lens, btn) {
-  document.querySelectorAll('.lum-swatch').forEach(s => s.classList.remove('active'));
-  btn.classList.add('active');
-
-  const bar = document.getElementById('lumLensPreviewBar');
-  const label = document.getElementById('lumLensPreviewLabel');
-  const descriptions = {
-    city:     'Warm amber tint — LED blue-light filtered. Streets glow amber, stars pop.',
-    astro:    'Deep violet contrast mode — maximum star visibility, Milky Way enhanced.',
-    antiglare:'Teal-tinted glare suppression — halos eliminated, natural background preserved.',
-    bright:   'Rose-tinted luminance reduction — ideal for bright suburban environments.',
-    custom:   'Multi-spectrum blend — fully customisable for your observation site.',
-  };
-  const colors = {
-    city:     'linear-gradient(90deg,rgba(245,158,11,0.25),rgba(180,83,9,0.15))',
-    astro:    'linear-gradient(90deg,rgba(124,58,237,0.3),rgba(76,29,149,0.2))',
-    antiglare:'linear-gradient(90deg,rgba(20,184,166,0.25),rgba(13,148,136,0.15))',
-    bright:   'linear-gradient(90deg,rgba(236,72,153,0.25),rgba(157,23,77,0.15))',
-    custom:   'linear-gradient(90deg,rgba(234,179,8,0.2),rgba(124,58,237,0.2))',
-  };
-  if (bar) {
-    bar.style.background = colors[lens] || '';
-    bar.style.borderColor = 'var(--border-glow)';
-    bar.style.color = 'var(--white)';
-  }
-  if (label) label.textContent = descriptions[lens] || '';
-}
-
-// Blue-light slider demo on lens-l hotspot
-function updateLumBlDemo(input) {
-  const val = input.value;
-  const display = document.getElementById('lumBlVal');
-  if (display) display.textContent = val;
-
-  const warmSky = document.getElementById('warmSky');
-  if (warmSky) {
-    // As blue light reduction increases, sky shifts warmer/darker
-    const warmth = Math.round(val * 0.8);
-    warmSky.style.background = `linear-gradient(135deg, hsl(${20 - val*0.15},${60 + warmth*0.3}%,${15 + (100-val)*0.12}%), hsl(${35 - val*0.2},${70}%,${25 + (100-val)*0.15}%))`;
-  }
-}
-
-// Battery mode switcher
-function setBattMode(mode, btn) {
-  document.querySelectorAll('.lum-batt-mode').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-
-  const bar = document.getElementById('lumBattBar');
-  const label = document.getElementById('lumBattLabel');
-  const configs = {
-    observe:   { pct: 100, label: '18 hrs remaining', color: 'linear-gradient(90deg,var(--purple),var(--purple-lt))' },
-    camera:    { pct: 50,  label: '9 hrs remaining',  color: 'linear-gradient(90deg,var(--teal),#34d399)' },
-    streaming: { pct: 33,  label: '6 hrs remaining',  color: 'linear-gradient(90deg,var(--amber),#fbbf24)' },
-  };
-  const cfg = configs[mode];
-  if (bar)   { bar.style.width = cfg.pct + '%'; bar.style.background = cfg.color; }
-  if (label) label.textContent = cfg.label;
-}
-
-// Lens tab switcher for main lens section
-const lumLensData = {
-  city: {
-    title: 'City Lens',
-    desc:  'Engineered for urban environments. Selectively attenuates LED blue-light frequencies (450–490nm) — the primary contributor to city sky glow — replacing harsh cold tones with warm amber hues. Perfect for city rooftops and suburban gardens.',
-    blue: '90%', contrast: '40%', glare: '65%',
-    visClass: 'city-vis',
-    barColor: ['var(--amber)', 'var(--violet)', 'var(--teal)'],
-  },
-  astronomy: {
-    title: 'Astronomy Lens',
-    desc:  'Maximises contrast ratio for deep-sky observation. Sharpens the luminance differential between celestial bodies and the surrounding sky, making faint nebulae, star clusters, and galaxies dramatically more visible.',
-    blue: '55%', contrast: '95%', glare: '40%',
-    visClass: 'astro-vis',
-    barColor: ['var(--purple)', 'var(--purple-lt)', 'var(--violet)'],
-  },
-  antiglare: {
-    title: 'Anti-Glare Lens',
-    desc:  'Neutralises point sources of artificial light — street lamps, billboards, illuminated windows — without darkening the entire visual field. Preserves the natural sky background while eliminating distracting halos.',
-    blue: '60%', contrast: '65%', glare: '95%',
-    visClass: 'antiglare-vis',
-    barColor: ['var(--teal)', 'var(--teal)', 'var(--teal)'],
-  },
-  brightness: {
-    title: 'Brightness Lens',
-    desc:  'Adapts to excessively bright environments by dynamically attenuating overall luminance while preserving colour accuracy. Useful in transition hours (dusk/dawn) or in areas with overwhelming sky-glow.',
-    blue: '35%', contrast: '45%', glare: '70%',
-    visClass: 'brightness-vis',
-    barColor: ['var(--rose)', 'var(--pink)', 'var(--rose)'],
-  },
-  custom: {
-    title: 'Custom Lens',
-    desc:  'Build your own personalised filter profile. Dial in precise blue-light attenuation, contrast enhancement, and warm-tint intensity. Save multiple profiles for different observation sites and share with the research community.',
-    blue: '100%', contrast: '100%', glare: '100%',
-    visClass: 'custom-vis',
-    barColor: ['var(--gold)', 'var(--gold)', 'var(--gold)'],
-  },
-};
-
-function switchLumLens(lens, btn) {
-  document.querySelectorAll('.lum-lens-tab').forEach(t => t.classList.remove('active'));
-  btn.classList.add('active');
-
-  const data = lumLensData[lens];
-  if (!data) return;
-
-  const titleEl = document.getElementById('lumLensTitle');
-  const descEl  = document.getElementById('lumLensDesc');
-  const visual  = document.getElementById('llcVisual');
-  const bar1    = document.getElementById('llcBar1');
-  const bar2    = document.getElementById('llcBar2');
-  const bar3    = document.getElementById('llcBar3');
-
-  if (titleEl) titleEl.textContent = data.title;
-  if (descEl)  descEl.textContent  = data.desc;
-  if (visual) {
-    visual.className = 'llc-visual ' + data.visClass;
-  }
-  if (bar1) { bar1.style.width = data.blue;     bar1.style.background = data.barColor[0]; }
-  if (bar2) { bar2.style.width = data.contrast; bar2.style.background = data.barColor[1]; }
-  if (bar3) { bar3.style.width = data.glare;    bar3.style.background = data.barColor[2]; }
-}
-
-
-
-// ===================== STAR EXPLORER — CONFIG =====================
-// SUPABASE_URL is already defined earlier in app.js.
-// The edge function lives at: <your-supabase-project>/functions/v1/star-lookup
-const STAR_LOOKUP_URL = `${SUPABASE_URL}/functions/v1/star-lookup`;
-
-// ===================== QUICK SEARCH (chip buttons) =====================
-function quickStarSearch(name) {
-  const input = document.getElementById('starSearchInput');
-  if (input) input.value = name;
-  lookupStar();
-}
-
-// ===================== STAR LOOKUP =====================
-async function lookupStar() {
-  const input    = document.getElementById('starSearchInput');
-  const query    = input ? input.value.trim() : '';
-  const resultEl = document.getElementById('starResult');
-  const loaderEl = document.getElementById('starLoader');
-  const errorEl  = document.getElementById('starError');
-
-  if (!query) { showToast('Enter a star name to search', 'error'); return; }
-
-  // Reset UI
-  if (resultEl) resultEl.style.display = 'none';
-  if (errorEl)  { errorEl.style.display = 'none'; errorEl.textContent = ''; }
-  if (loaderEl) loaderEl.style.display = 'flex';
-
-  try {
-    // Build headers — attach Supabase auth token if the user is signed in
-    const headers = { 'Content-Type': 'application/json' };
-    const { data: { session } } = await supabaseDB.auth.getSession();
-    if (session?.access_token) {
-      headers['Authorization'] = `Bearer ${session.access_token}`;
-    }
-
-    const res = await fetch(
-      `${STAR_LOOKUP_URL}?name=${encodeURIComponent(query)}&limit=1`,
-      { method: 'GET', headers }
-    );
-
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || `HTTP ${res.status}`);
-    }
-
-    const data = await res.json();
-    if (loaderEl) loaderEl.style.display = 'none';
-
-    if (!Array.isArray(data) || data.length === 0) {
-      if (errorEl) {
-        errorEl.textContent =
-          `No star found for "${query}". Try a full name like "Sirius" or "Betelgeuse".`;
-        errorEl.style.display = 'block';
-      }
-      return;
-    }
-
-    if (resultEl) {
-      resultEl.innerHTML = buildStarCard(data[0]);
-      resultEl.style.display = 'block';
-    }
-
-  } catch (err) {
-    if (loaderEl) loaderEl.style.display = 'none';
-    if (errorEl) {
-      errorEl.textContent =
-        `Could not fetch star data: ${err.message}. Check your connection or try again.`;
-      errorEl.style.display = 'block';
-    }
-    console.error('Star lookup error:', err);
-  }
-}
-
-// Allow pressing Enter inside the search input
-window.addEventListener('DOMContentLoaded', () => {
-  const input = document.getElementById('starSearchInput');
-  if (input) input.addEventListener('keydown', e => { if (e.key === 'Enter') lookupStar(); });
-});
-
-// ===================== STAR CARD RENDERER =====================
-function buildStarCard(star) {
-  const fields = [
-    { key: 'constellation',       label: 'Constellation'       },
-    { key: 'right_ascension',     label: 'Right Ascension'     },
-    { key: 'declination',         label: 'Declination'         },
-    { key: 'apparent_magnitude',  label: 'Apparent Magnitude'  },
-    { key: 'absolute_magnitude',  label: 'Absolute Magnitude'  },
-    { key: 'distance_light_year', label: 'Distance',  unit: 'ly' },
-    { key: 'spectral_class',      label: 'Spectral Class'      },
-  ];
-
-  // Colour-code the star icon by its spectral class
-  const spectralColors = {
-    O: '#a8c0ff', B: '#b8d0ff', A: '#e8eeff',
-    F: '#fff8dc', G: '#fffacd', K: '#ffa040', M: '#ff6030',
-  };
-  const cls       = (star.spectral_class || 'G')[0].toUpperCase();
-  const starColor = spectralColors[cls] || '#c4b5fd';
-
-  const statRows = fields
-    .filter(f => star[f.key] !== undefined && star[f.key] !== null && star[f.key] !== '')
-    .map(f => `
-      <div class="star-stat-row">
-        <span class="star-stat-label">${f.label}</span>
-        <span class="star-stat-value">${escapeHtml(String(star[f.key]))}${f.unit ? ' ' + f.unit : ''}</span>
-      </div>
-    `).join('');
-
-  return `
-    <div class="star-card">
-      <div class="star-card-glow"
-           style="background:radial-gradient(ellipse 60% 60% at 10% 10%,${starColor}33 0%,transparent 70%)">
-      </div>
-      <div class="star-card-header">
-        <div class="star-card-icon" style="color:${starColor}">✦</div>
-        <div class="star-card-name-block">
-          <h4 class="star-card-name">${escapeHtml(star.name || 'Unknown Star')}</h4>
-          ${star.spectral_class
-            ? `<span class="star-spectral-badge">Spectral Class ${escapeHtml(star.spectral_class)}</span>`
-            : ''}
-        </div>
-      </div>
-      <div class="star-card-stats">
-        ${statRows || '<p class="star-no-data">No detailed data available for this star.</p>'}
-      </div>
-    </div>
-  `;
-}
-
-// Init battery bar on page load
-window.addEventListener('DOMContentLoaded', () => {
-  const bar = document.getElementById('lumBattBar');
-  if (bar) bar.style.width = '100%';
 });

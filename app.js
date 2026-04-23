@@ -15,7 +15,9 @@ const state = {
   user: null,
   snapshots: [],
   customSettings: { blue: 60, contrast: 40, warm: 50 },
+  lensIntensity: 70,              // 0–100, drives the Intensity slider
   compareMode: false,
+  compareLenses: null,            // { a, b } when comparison is active
   mapInitialised: false,
   userLocation: null,
   researchFeed: [],
@@ -273,23 +275,94 @@ function drawSkyFrame() {
 }
 
 function applyLensOverlayToCanvas(ctx, w, h, lens) {
+  // If comparison mode is active, each lens renders on its own half
+  // of the canvas, redrawn every frame so the split survives the
+  // 60fps animation loop.
+  if (state.compareMode && state.compareLenses) {
+    const { a, b } = state.compareLenses;
+
+    // Left half — lens A
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, w / 2, h);
+    ctx.clip();
+    drawLensTint(ctx, w, h, a);
+    ctx.restore();
+
+    // Right half — lens B
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(w / 2, 0, w / 2, h);
+    ctx.clip();
+    drawLensTint(ctx, w, h, b);
+    ctx.restore();
+
+    // Divider and labels
+    ctx.save();
+    ctx.strokeStyle = 'rgba(168,85,247,0.9)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath();
+    ctx.moveTo(w / 2, 0);
+    ctx.lineTo(w / 2, h);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(200,160,255,0.95)';
+    ctx.font = 'bold 11px Space Mono, monospace';
+    ctx.fillText(getLensName(a) || 'No Lens', 12, 20);
+    ctx.fillText(getLensName(b) || 'No Lens', w / 2 + 10, 20);
+    ctx.restore();
+    return;
+  }
+
+  // Normal single-lens mode
   if (!state.lensActive) return;
+  drawLensTint(ctx, w, h, lens);
+}
+
+/**
+ * Draws a single lens tint over the entire canvas.
+ * The intensity slider (0–100) is mapped to an alpha multiplier
+ * of 0.15 → 3.0 so the effect slides visibly from almost-nothing
+ * to fully saturated. The custom lens additionally uses all three
+ * of its own sliders (blue, contrast, warm).
+ */
+function drawLensTint(ctx, w, h, lens) {
+  if (!lens || lens === 'none') return;
+
+  const intensity = state.lensIntensity / 100;    // 0–1
+  const alphaMul  = 0.15 + intensity * 2.85;       // 0.15 – 3.0
+
   ctx.save();
   if (lens === 'city') {
-    ctx.fillStyle = 'rgba(180, 100, 10, 0.08)';
+    // Amber tint — blue-light cut
+    ctx.fillStyle = `rgba(200, 130, 30, ${Math.min(0.85, 0.22 * alphaMul)})`;
     ctx.fillRect(0, 0, w, h);
   } else if (lens === 'astronomy') {
-    ctx.fillStyle = 'rgba(20, 0, 60, 0.1)';
+    // Deep violet — enhances star contrast
+    ctx.fillStyle = `rgba(40, 10, 120, ${Math.min(0.85, 0.25 * alphaMul)})`;
     ctx.fillRect(0, 0, w, h);
   } else if (lens === 'antiglare') {
-    ctx.fillStyle = 'rgba(0, 20, 40, 0.07)';
+    // Cool blue-grey — reduces halo
+    ctx.fillStyle = `rgba(0, 30, 60, ${Math.min(0.85, 0.20 * alphaMul)})`;
     ctx.fillRect(0, 0, w, h);
   } else if (lens === 'brightness') {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    // Darkening overlay, capped so stars don't vanish
+    ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(0.9, 0.35 * alphaMul)})`;
     ctx.fillRect(0, 0, w, h);
   } else if (lens === 'custom') {
-    const { blue, warm } = state.customSettings;
-    ctx.fillStyle = `rgba(${warm*1.5}, ${60}, ${255 - blue*2}, ${blue * 0.001})`;
+    // Custom lens responds to ALL three sliders plus intensity:
+    //   warm      → red channel (higher = more orange)
+    //   blue      → cuts blue channel (higher = more blue blocked)
+    //   contrast  → base opacity of the tint
+    //   intensity → final multiplier on top of everything
+    const { blue, contrast, warm } = state.customSettings;
+    const r  = Math.min(255, Math.round(80 + warm * 1.8));
+    const g  = Math.round(40 + warm * 0.4);
+    const b  = Math.max(0,  Math.round(220 - blue * 2.2));
+    const baseA = 0.18 + contrast * 0.004;           // 0.18 – 0.58
+    const a  = Math.min(0.9, baseA * alphaMul);
+    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
     ctx.fillRect(0, 0, w, h);
   }
   ctx.restore();
@@ -297,6 +370,15 @@ function applyLensOverlayToCanvas(ctx, w, h, lens) {
 
 // ===================== LENS CONTROL =====================
 function selectLens(lensId, el) {
+  // If the user picks a single lens while comparison is on, exit
+  // comparison cleanly so the two interactions don't conflict.
+  if (state.compareMode) {
+    state.compareMode   = false;
+    state.compareLenses = null;
+    const cp = document.getElementById('comparePanel');
+    if (cp) cp.style.display = 'none';
+  }
+
   state.currentLens = lensId;
   document.querySelectorAll('.lens-card').forEach(c => c.classList.remove('active'));
   if (el) el.classList.add('active');
@@ -336,29 +418,43 @@ function applyLensOverlay(lensId) {
   overlay.style.mixBlendMode = 'normal';
   if (!state.lensActive || lensId === 'none') return;
 
+  const intensity = state.lensIntensity / 100;
+  const m = 0.15 + intensity * 2.85;    // 0.15 – 3.0
+
   const configs = {
-    city:       { bg: 'rgba(200,130,30,0.12)',   blend: 'multiply' },
-    astronomy:  { bg: 'rgba(40, 10,120,0.15)',   blend: 'multiply' },
-    antiglare:  { bg: 'rgba(0,  30, 60,0.1)',    blend: 'multiply' },
-    brightness: { bg: 'rgba(0,   0,  0,0.22)',   blend: 'normal'   },
-    custom: {
-      bg: `rgba(${state.customSettings.warm*1.5},60,${255 - state.customSettings.blue*2},${state.customSettings.blue*0.001})`,
-      blend: 'multiply'
-    },
+    city:       { bg: `rgba(200,130,30, ${Math.min(0.9, 0.22 * m)})`, blend: 'multiply' },
+    astronomy:  { bg: `rgba(40, 10,120, ${Math.min(0.9, 0.25 * m)})`, blend: 'multiply' },
+    antiglare:  { bg: `rgba(0,  30, 60, ${Math.min(0.9, 0.20 * m)})`, blend: 'multiply' },
+    brightness: { bg: `rgba(0,   0,  0, ${Math.min(0.9, 0.35 * m)})`, blend: 'normal'   },
+    custom: (() => {
+      const { blue, contrast, warm } = state.customSettings;
+      const r  = Math.min(255, Math.round(80 + warm * 1.8));
+      const g  = Math.round(40 + warm * 0.4);
+      const b  = Math.max(0,  Math.round(220 - blue * 2.2));
+      const baseA = 0.18 + contrast * 0.004;
+      const a  = Math.min(0.9, baseA * m);
+      return { bg: `rgba(${r}, ${g}, ${b}, ${a})`, blend: 'multiply' };
+    })(),
   };
   const cfg = configs[lensId];
   if (cfg) { overlay.style.background = cfg.bg; overlay.style.mixBlendMode = cfg.blend; }
 }
 
 function updateIntensity(el) {
+  // Store it in state so drawLensTint() and applyLensOverlay() both see it
+  state.lensIntensity = parseInt(el.value);
   document.getElementById('intensityVal').textContent = el.value;
   applyLensOverlay(state.currentLens);
+  if (state.cameraActive) applyFilterToCamera();
 }
 
 function updateCustom(type, el) {
   state.customSettings[type] = parseInt(el.value);
   document.getElementById(`${type}Val`).textContent = el.value;
   applyLensOverlay('custom');
+  // The camera feed needs a refresh too so the custom sliders
+  // update the live video, not just the simulated sky
+  if (state.cameraActive) applyFilterToCamera();
 }
 
 // ===================== CAMERA =====================
@@ -404,19 +500,38 @@ function stopCamera() {
 function applyFilterToCamera() {
   const video = document.getElementById('cameraFeed');
   if (!video) return;
+
+  // Intensity slider maps to a 0–1 strength multiplier that scales
+  // every filter smoothly from neutral (no effect) to full effect.
+  const i = state.lensIntensity / 100;
+
   const filters = {
-    none:       'none',
-    city:       'sepia(0.4) hue-rotate(20deg) saturate(0.7)',
-    astronomy:  'contrast(1.6) brightness(1.15) saturate(0.8)',
-    antiglare:  'brightness(0.85) contrast(1.1)',
-    brightness: 'brightness(0.65) contrast(1.05)',
+    none: () => 'none',
+
+    city: () =>
+      `sepia(${0.6 * i}) hue-rotate(${20 * i}deg) saturate(${1 - 0.5 * i}) brightness(${1 - 0.1 * i})`,
+
+    astronomy: () =>
+      `contrast(${1 + 0.8 * i}) brightness(${1 + 0.25 * i}) saturate(${1 - 0.3 * i})`,
+
+    antiglare: () =>
+      `brightness(${1 - 0.25 * i}) contrast(${1 + 0.15 * i})`,
+
+    brightness: () =>
+      `brightness(${1 - 0.45 * i}) contrast(${1 + 0.08 * i})`,
+
     custom: () => {
       const { blue, contrast, warm } = state.customSettings;
-      return `sepia(${warm/150}) contrast(${1 + contrast/200}) saturate(${1 - blue/250}) brightness(0.9)`;
-    }
+      return `sepia(${(warm / 120) * i}) `
+           + `contrast(${1 + (contrast / 150) * i}) `
+           + `saturate(${1 - (blue / 200) * i}) `
+           + `brightness(${1 - 0.1 * i})`;
+    },
   };
-  const f = filters[state.lensActive ? state.currentLens : 'none'];
-  video.style.filter = typeof f === 'function' ? f() : (state.lensActive ? f : 'none');
+
+  const lens = state.lensActive ? state.currentLens : 'none';
+  const fn   = filters[lens] || filters.none;
+  video.style.filter = fn();
 }
 
 // ===================== SNAPSHOT =====================
@@ -480,29 +595,50 @@ function downloadSnapshot(idx) {
 function toggleLensCompare() {
   state.compareMode = !state.compareMode;
   document.getElementById('comparePanel').style.display = state.compareMode ? 'flex' : 'none';
-  if (state.compareMode) document.getElementById('comparePanel').style.flexDirection = 'column';
+
+  if (state.compareMode) {
+    document.getElementById('comparePanel').style.flexDirection = 'column';
+    // Kick off an initial comparison with whatever the dropdowns say
+    runComparison();
+  } else {
+    // Leaving compare mode — clear the pair and put the overlay back
+    state.compareLenses = null;
+    applyLensOverlay(state.currentLens);
+    if (state.cameraActive) applyFilterToCamera();
+    showToast('Comparison mode off');
+  }
 }
 
 function runComparison() {
   const a = document.getElementById('compareA').value;
   const b = document.getElementById('compareB').value;
+
+  if (a === b) {
+    showToast('Pick two different lenses to compare.', 'error');
+    return;
+  }
+
+  // Store the pair so drawSkyFrame() → applyLensOverlayToCanvas()
+  // redraws the split on every frame. The old code drew once and
+  // the animation loop instantly overwrote it.
+  state.compareLenses = { a, b };
+  state.compareMode   = true;
+  state.lensActive    = true;
+
+  // Sync the lens-power toggle so the UI matches what's actually on
+  const lensToggle = document.getElementById('lensToggle');
+  if (lensToggle) lensToggle.checked = true;
+
+  // Clear the single-lens CSS overlay so it doesn't cover the split
+  const overlay = document.getElementById('lensOverlay');
+  if (overlay) {
+    overlay.style.background   = 'none';
+    overlay.style.mixBlendMode = 'normal';
+  }
+
   const aName = getLensName(a) || 'No Lens';
   const bName = getLensName(b) || 'No Lens';
-  showToast(`Comparing ${aName} vs ${bName}`);
-
-  // Visual split on canvas — left half lens A, right half lens B
-  if (skyCtx) {
-    const w = skyCanvas.width, h = skyCanvas.height;
-    // Draw comparison overlay
-    skyCtx.save();
-    skyCtx.fillStyle = 'rgba(255,255,255,0.08)';
-    skyCtx.fillRect(w/2, 0, 1, h);
-    skyCtx.fillStyle = 'rgba(200,160,255,0.8)';
-    skyCtx.font = '11px Space Mono, monospace';
-    skyCtx.fillText(aName, 12, h - 12);
-    skyCtx.fillText(bName, w/2 + 8, h - 12);
-    skyCtx.restore();
-  }
+  showToast(`Comparing:  ${aName}  ↔  ${bName}`);
 }
 
 // ===================== LOCATION =====================
